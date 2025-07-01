@@ -9,6 +9,8 @@ pub mod dust_bonus_verification_test;
 pub mod orbital_wand_integration_test;
 pub mod position_token_staking_test;
 pub mod comprehensive_gambling_test;
+pub mod alkamist_integration_test;
+pub mod position_validation_test;
 
 // Edge case and security tests
 // pub mod edge_case_verification_test;

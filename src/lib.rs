@@ -34,6 +34,7 @@ pub mod tests {
     pub mod probability_calculation_test;
     pub mod dust_bonus_verification_test;
     pub mod orbital_wand_integration_test;
+    pub mod position_validation_test;
 }
 
 const DUST_BLOCK: u128 = 0x2;
@@ -207,10 +208,59 @@ impl DustSwap {
     Ok(())
   }
 
-  fn is_valid_position(&self, id: &AlkaneId) -> Result<bool> {
-    // Position tokens should be from the position token contract
-    // For now, we'll accept any alkane from block 2 as a position token
-    Ok(id.block == DUST_BLOCK)
+  fn is_valid_alkamist_or_dust(&self, id: &AlkaneId) -> Result<bool> {
+    // Accept specific valid positions:
+    // - Alkamist position at 2:25720
+    // - Dust position at 2:35275
+    // - Any Dust tokens from block 2 (for backward compatibility)
+    
+    const ALKAMIST_BLOCK: u128 = 0x2;
+    const ALKAMIST_TX: u128 = 25720;
+    const DUST_TX: u128 = 35275;
+    
+    // Check for specific valid alkamist position
+    if id.block == ALKAMIST_BLOCK && id.tx == ALKAMIST_TX {
+      return Ok(true);
+    }
+    
+    // Check for specific valid dust position
+    if id.block == DUST_BLOCK && id.tx == DUST_TX {
+      return Ok(true);
+    }
+    
+    // For backward compatibility, accept any token from DUST_BLOCK (block 2)
+    // but exclude the specific alkamist position to avoid double-counting
+    if id.block == DUST_BLOCK && id.tx != ALKAMIST_TX {
+      return Ok(true);
+    }
+    
+    Ok(false)
+  }
+
+  /// Validate incoming alkanes similar to boiler's authenticate_position
+  fn validate_incoming_alkanes(&self, incoming_alkanes: &[AlkaneTransfer]) -> Result<()> {
+    // Validate incoming alkanes structure
+    if incoming_alkanes.is_empty() {
+      return Err(anyhow!("No incoming alkanes for validation"));
+    }
+
+    for transfer in incoming_alkanes {
+      // The value should be at least 1
+      if transfer.value < 1 {
+        return Err(anyhow!("Less than 1 unit of token supplied for alkane {}:{}",
+                          transfer.id.block, transfer.id.tx));
+      }
+
+      // Validate that this is a valid alkamist or dust token
+      if !self.is_valid_alkamist_or_dust(&transfer.id)? {
+        return Err(anyhow!(
+          "Invalid token ID {}:{} - must be valid Alkamist position (2:25720), Dust position (2:35275), or other Dust token from block 2",
+          transfer.id.block, transfer.id.tx
+        ));
+      }
+    }
+
+    Ok(())
   }
 
   fn position_to_dust(&self) -> Result<CallResponse> {
@@ -231,11 +281,10 @@ impl DustSwap {
     let mut response = CallResponse::default();
     let mut total_dust = 0u128;
 
-    for alkane in context.incoming_alkanes.0.iter() {
-      if !self.is_valid_position(&alkane.id)? {
-        return Err(anyhow!("Invalid Position token ID"));
-      }
+    // Validate all incoming alkanes first
+    self.validate_incoming_alkanes(&context.incoming_alkanes.0)?;
 
+    for alkane in context.incoming_alkanes.0.iter() {
       self.add_instance(&alkane.id)?;
 
       total_dust = total_dust.checked_add(DUST_PER_POSITION)
@@ -311,7 +360,59 @@ impl DustSwap {
   }
 
   fn mint_tokens(&self) -> Result<CallResponse> {
-    return Err(anyhow!("Minting not implemented"));
+    let context = self.context()?;
+    let txid = self.transaction_id()?;
+
+    // Enforce one mint per transaction
+    if self.has_tx_hash(&txid) {
+      return Err(anyhow!("Transaction already used for minting"));
+    }
+
+    // Check if we have reached the dust cap
+    let current_supply = self.total_supply();
+    if current_supply >= DUST_CAP {
+      return Err(anyhow!("Dust cap of {} reached", DUST_CAP));
+    }
+
+    // Validate that caller sent valid Alkamist or position tokens
+    if context.incoming_alkanes.0.is_empty() {
+      return Err(anyhow!("Must send tokens to mint dust"));
+    }
+
+    let mut total_mint_amount = 0u128;
+    let mut response = CallResponse::default();
+
+    // Validate all incoming alkanes first
+    self.validate_incoming_alkanes(&context.incoming_alkanes.0)?;
+
+    for alkane in context.incoming_alkanes.0.iter() {
+      // Calculate mint amount based on token value
+      let mint_amount = alkane.value.checked_mul(DUST_PER_POSITION)
+        .ok_or_else(|| anyhow!("Mint amount overflow"))?;
+
+      // Check if minting this amount would exceed cap
+      let new_supply = current_supply.checked_add(total_mint_amount).and_then(|s| s.checked_add(mint_amount));
+      if new_supply.is_none() || new_supply.unwrap() > DUST_CAP {
+        return Err(anyhow!("Minting would exceed dust cap"));
+      }
+
+      total_mint_amount = total_mint_amount.checked_add(mint_amount)
+        .ok_or_else(|| anyhow!("Total mint amount overflow"))?;
+    }
+
+    // Record transaction to prevent replay
+    self.add_tx_hash(&txid)?;
+
+    // Update total supply
+    self.increase_total_supply(total_mint_amount)?;
+
+    // Return minted dust tokens
+    response.alkanes.0.push(AlkaneTransfer {
+      id: context.myself.clone(),
+      value: total_mint_amount,
+    });
+
+    Ok(response)
   }
 
   fn get_position_stack_count(&self) -> Result<CallResponse> {
