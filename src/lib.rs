@@ -214,23 +214,17 @@ impl DustSwap {
     // - Dust position at 2:35275
     // - Any Dust tokens from block 2 (for backward compatibility)
     
-    const ALKAMIST_BLOCK: u128 = 0x2;
+    const BLOCK: u128 = 0x2;
     const ALKAMIST_TX: u128 = 25720;
     const DUST_TX: u128 = 35275;
     
     // Check for specific valid alkamist position
-    if id.block == ALKAMIST_BLOCK && id.tx == ALKAMIST_TX {
+    if id.block == BLOCK && id.tx == ALKAMIST_TX {
       return Ok(true);
     }
     
     // Check for specific valid dust position
-    if id.block == DUST_BLOCK && id.tx == DUST_TX {
-      return Ok(true);
-    }
-    
-    // For backward compatibility, accept any token from DUST_BLOCK (block 2)
-    // but exclude the specific alkamist position to avoid double-counting
-    if id.block == DUST_BLOCK && id.tx != ALKAMIST_TX {
+    if id.block == BLOCK && id.tx == DUST_TX {
       return Ok(true);
     }
     
@@ -238,13 +232,15 @@ impl DustSwap {
   }
 
   /// Validate incoming alkanes similar to boiler's authenticate_position
-  fn validate_incoming_alkanes(&self, incoming_alkanes: &[AlkaneTransfer]) -> Result<()> {
+  fn validate_incoming_alkanes(&self) -> Result<()> {
+    let context = self.context()?;
+    
     // Validate incoming alkanes structure
-    if incoming_alkanes.is_empty() {
+    if context.incoming_alkanes.0.is_empty() {
       return Err(anyhow!("No incoming alkanes for validation"));
     }
 
-    for transfer in incoming_alkanes {
+    for transfer in &context.incoming_alkanes.0 {
       // The value should be at least 1
       if transfer.value < 1 {
         return Err(anyhow!("Less than 1 unit of token supplied for alkane {}:{}",
@@ -282,7 +278,7 @@ impl DustSwap {
     let mut total_dust = 0u128;
 
     // Validate all incoming alkanes first
-    self.validate_incoming_alkanes(&context.incoming_alkanes.0)?;
+    self.validate_incoming_alkanes()?;
 
     for alkane in context.incoming_alkanes.0.iter() {
       self.add_instance(&alkane.id)?;
@@ -383,7 +379,7 @@ impl DustSwap {
     let mut response = CallResponse::default();
 
     // Validate all incoming alkanes first
-    self.validate_incoming_alkanes(&context.incoming_alkanes.0)?;
+    self.validate_incoming_alkanes()?;
 
     for alkane in context.incoming_alkanes.0.iter() {
       // Calculate mint amount based on token value

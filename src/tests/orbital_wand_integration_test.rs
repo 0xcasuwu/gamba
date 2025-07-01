@@ -450,7 +450,7 @@ fn perform_complete_gambling_flow(
     } else {
         0
     };
-    let effective_threshold = 141u8.saturating_sub(dust_bonus);
+    let effective_threshold = 150u8.saturating_sub(dust_bonus);
     let win_probability = (256.0 - effective_threshold as f64) / 256.0;
     
     println!("   📈 Theoretical Analysis:");
@@ -651,7 +651,7 @@ fn test_orbital_wand_comprehensive_integration() -> Result<()> {
         } else {
             0
         };
-        let win_probability = (256.0 - (141.0 - dust_bonus as f64)) / 256.0;
+        let win_probability = (256.0 - (150.0 - dust_bonus as f64)) / 256.0;
         
         println!("   • {}: {} dust ({}), +{} bonus, {:.1}% odds → {}",
                  user_name, dust_amount, description, dust_bonus, 

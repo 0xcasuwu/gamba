@@ -32,7 +32,7 @@ const DUST_BONUS_THRESHOLD: u128 = 2000;
 const DUST_BONUS_INCREMENT: u128 = 1000;
 const DUST_BONUS_POINTS: u8 = 10;
 const ALKAMIST_BONUS_MULTIPLIER: u8 = 5; // Bonus points per Alkamist token
-const WIN_THRESHOLD: u8 = 141;
+const SUCCESS_THRESHOLD: u8 = 150; // Values 150+ succeed in creating a wand
 
 #[derive(Default)]
 pub struct OrbitalWand(());
@@ -244,7 +244,7 @@ impl OrbitalWand {
     }
 
     // Validate all incoming alkanes first
-    self.validate_incoming_alkanes(&context.incoming_alkanes.0)?;
+    self.validate_incoming_alkanes()?;
 
     // Separate Alkamist and Dust tokens
     let mut alkamist_transfers: Vec<AlkaneTransfer> = Vec::new();
@@ -294,15 +294,15 @@ impl OrbitalWand {
       (StakeTokenType::Dust, dust_transfers[0].id.clone())
     };
 
-    // Check if player wins
-    if final_xor_result < WIN_THRESHOLD {
-      // Player loses - consume their stake
+    // Check if wand creation succeeds
+    if final_xor_result < SUCCESS_THRESHOLD {
+      // Wand creation fails - tokens are burned (consumed) to improve odds but failed
       self.add_tx_hash(&txid)?;
       self.record_loss_detailed(total_dust, total_alkamist)?;
-      return Err(anyhow!("XOR result {} < {}. Better luck next time!", final_xor_result, WIN_THRESHOLD));
+      return Err(anyhow!("Wand creation failed! XOR result {} < {}. Your dust/alkamist tokens were burned in the attempt.", final_xor_result, SUCCESS_THRESHOLD));
     }
 
-    // Player wins! Create orbital wand NFT
+    // Wand creation succeeds! Create orbital wand NFT
     let wand_id = self.get_next_wand_id()?;
     let block_height = self.block_height()?;
 
@@ -559,14 +559,14 @@ impl OrbitalWand {
     let info = format!(r#"{{
   "name": "Orbital Wand Gambling Contract",
   "version": "2.0.0",
-  "description": "Production-ready gambling contract accepting Alkamist (AUTH) and Dust tokens",
+  "description": "Wand creation contract that burns Alkamist and Dust tokens to improve success odds",
   "features": [
     "Alkamist token support",
     "Dust token support",
-    "Mixed token gambling",
+    "Token burning for improved odds",
     "Dynamic bonus calculation",
-    "Cryptographic randomness",
-    "NFT wand rewards",
+    "Merkle root randomness",
+    "NFT wand creation",
     "Comprehensive statistics"
   ],
   "constants": {{
@@ -595,7 +595,7 @@ impl OrbitalWand {
       DUST_BONUS_INCREMENT,
       DUST_BONUS_POINTS,
       ALKAMIST_BONUS_MULTIPLIER,
-      WIN_THRESHOLD,
+      SUCCESS_THRESHOLD,
       self.wand_count(),
       self.total_games(),
       self.total_dust_consumed(),
@@ -628,13 +628,15 @@ impl OrbitalWand {
   }
 
   /// Validate incoming alkanes similar to boiler's authenticate_position
-  fn validate_incoming_alkanes(&self, incoming_alkanes: &[AlkaneTransfer]) -> Result<()> {
+  fn validate_incoming_alkanes(&self) -> Result<()> {
+    let context = self.context()?;
+    
     // Validate incoming alkanes structure
-    if incoming_alkanes.is_empty() {
+    if context.incoming_alkanes.0.is_empty() {
       return Err(anyhow!("No incoming alkanes for validation"));
     }
 
-    for transfer in incoming_alkanes {
+    for transfer in &context.incoming_alkanes.0 {
       // The value should be at least 1
       if transfer.value < 1 {
         return Err(anyhow!("Less than 1 unit of token supplied for alkane {}:{}",
@@ -678,25 +680,23 @@ impl OrbitalWand {
     std::cmp::min(bonus, 255) as u8
   }
 
-  fn calculate_base_xor(&self, txid: &Txid, merkle_root: &TxMerkleNode) -> Result<u8> {
-    let txid_bytes = txid.as_byte_array();
+  fn calculate_base_xor(&self, _txid: &Txid, merkle_root: &TxMerkleNode) -> Result<u8> {
     let merkle_bytes = merkle_root.as_byte_array();
     
-    let txid_last = txid_bytes[31];
-    let merkle_last = merkle_bytes[31];
-    
-    Ok(txid_last ^ merkle_last)
+    // Use the last byte of the merkle root as the base randomness
+    // This gives us a value from 0-255 which we compare against SUCCESS_THRESHOLD
+    Ok(merkle_bytes[31])
   }
 
   fn calculate_wand_power(&self, final_xor_result: u8) -> String {
     match final_xor_result {
-      141..=160 => "Apprentice".to_string(),
-      161..=180 => "Adept".to_string(),
-      181..=200 => "Expert".to_string(),
-      201..=220 => "Master".to_string(),
-      221..=240 => "Grandmaster".to_string(),
-      241..=255 => "Cosmic".to_string(),
-      _ => "Unknown".to_string(),
+      150..=170 => "Apprentice".to_string(),
+      171..=190 => "Adept".to_string(),
+      191..=210 => "Expert".to_string(),
+      211..=230 => "Master".to_string(),
+      231..=250 => "Grandmaster".to_string(),
+      251..=255 => "Cosmic".to_string(),
+      _ => "Failed".to_string(), // Should not happen for successful wands
     }
   }
 
