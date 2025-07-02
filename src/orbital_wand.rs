@@ -1,16 +1,15 @@
-use metashrew_support::index_pointer::KeyValuePointer;
-use metashrew_support::compat::to_arraybuffer_layout;
 use metashrew_support::utils::consensus_decode;
 
 use alkanes_runtime::{
-  declare_alkane, message::MessageDispatch, storage::StoragePointer, token::Token,
+  declare_alkane, message::MessageDispatch, storage::StoragePointer,
   runtime::AlkaneResponder
 };
 
 use alkanes_support::{
+  cellpack::Cellpack,
   id::AlkaneId,
-  parcel::AlkaneTransfer, response::CallResponse,
-  utils::overflow_error
+  parcel::{AlkaneTransfer, AlkaneTransferParcel},
+  response::CallResponse
 };
 
 use bitcoin::hashes::{Hash, HashEngine};
@@ -22,6 +21,7 @@ use std::sync::Arc;
 use crate::wand_svg::{WandData, WandSvgGenerator};
 use crate::probability::ProbabilityCalculator;
 
+// Token validation constants
 const DUST_TOKEN_BLOCK: u128 = 0x2;
 const ALKAMIST_TOKEN_BLOCK: u128 = 0x2; // Alkamist position is also in block 2
 const ALKAMIST_TX: u128 = 25720; // Specific alkamist position tx
@@ -34,13 +34,24 @@ const DUST_BONUS_POINTS: u8 = 10;
 const ALKAMIST_BONUS_MULTIPLIER: u8 = 5; // Bonus points per Alkamist token
 const SUCCESS_THRESHOLD: u8 = 150; // Values 150+ succeed in creating a wand
 
-#[derive(Default)]
-pub struct OrbitalWand(());
+// Wand template IDs - predefined template contracts for each wand type
+const COMMON_WAND_TEMPLATE_ID: u128 = 0x1001;     // 150-170: Common Wands
+const RARE_WAND_TEMPLATE_ID: u128 = 0x1002;       // 171-190: Rare Wands
+const EPIC_WAND_TEMPLATE_ID: u128 = 0x1003;       // 191-210: Epic Wands
+const LEGENDARY_WAND_TEMPLATE_ID: u128 = 0x1004;  // 211-230: Legendary Wands
+const MYTHIC_WAND_TEMPLATE_ID: u128 = 0x1005;     // 231-250: Mythic Wands
+const COSMIC_WAND_TEMPLATE_ID: u128 = 0x1006;     // 251-255: Cosmic Wands
 
-impl AlkaneResponder for OrbitalWand {}
+// Template block (assuming templates are deployed in block 6 like boiler)
+const WAND_TEMPLATE_BLOCK: u128 = 6;
+
+#[derive(Default)]
+pub struct OrbitalWandFactory(());
+
+impl AlkaneResponder for OrbitalWandFactory {}
 
 #[derive(MessageDispatch)]
-enum OrbitalWandMessage {
+enum OrbitalWandFactoryMessage {
   #[opcode(0)]
   Initialize,
 
@@ -102,17 +113,19 @@ enum OrbitalWandMessage {
   #[opcode(2010)]
   #[returns(String)]
   GetContractInfo,
+
+  // Child registration opcodes (like boiler)
+  #[opcode(3000)]
+  #[returns(Vec<u8>)]
+  GetAllRegisteredWands,
+
+  #[opcode(3001)]
+  #[returns(bool)]
+  IsRegisteredWand {
+    wand_id: AlkaneId,
+  },
 }
 
-impl Token for OrbitalWand {
-  fn name(&self) -> String {
-    return String::from("Orbital Wand")
-  }
-
-  fn symbol(&self) -> String {
-    return String::from("WAND");
-  }
-}
 
 #[derive(Clone)]
 pub struct WandMetadata {
@@ -220,7 +233,7 @@ impl WandMetadata {
     }
 }
 
-impl OrbitalWand {
+impl OrbitalWandFactory {
   fn initialize(&self) -> Result<CallResponse> {
     self.observe_initialization()?;
     let context = self.context()?;
@@ -264,16 +277,20 @@ impl OrbitalWand {
       return Err(anyhow!("No valid Alkamist or Dust tokens provided"));
     }
 
-    // Calculate total amounts
-    let total_alkamist: u128 = alkamist_transfers.iter().map(|t| t.value).sum();
-    let total_dust: u128 = dust_transfers.iter().map(|t| t.value).sum();
+    // Calculate total amounts with overflow protection
+    let total_alkamist: u128 = alkamist_transfers.iter()
+      .try_fold(0u128, |acc, t| acc.checked_add(t.value))
+      .ok_or_else(|| anyhow!("Alkamist amount overflow"))?;
+    let total_dust: u128 = dust_transfers.iter()
+      .try_fold(0u128, |acc, t| acc.checked_add(t.value))
+      .ok_or_else(|| anyhow!("Dust amount overflow"))?;
 
     // Validate minimum stakes
     if total_alkamist > 0 && total_alkamist < MIN_ALKAMIST_STAKE {
-      return Err(anyhow!("Minimum {} Alkamist tokens required", MIN_ALKAMIST_STAKE));
+      return Err(anyhow!("Insufficient Alkamist tokens - minimum {} required, got {}", MIN_ALKAMIST_STAKE, total_alkamist));
     }
     if total_dust > 0 && total_dust < MIN_DUST_STAKE {
-      return Err(anyhow!("Minimum {} dust required", MIN_DUST_STAKE));
+      return Err(anyhow!("Insufficient dust tokens - minimum {} required, got {}", MIN_DUST_STAKE, total_dust));
     }
 
     // Calculate bonuses
@@ -283,33 +300,78 @@ impl OrbitalWand {
     // Get randomness sources
     let merkle_root = self.merkle_root()?;
     let base_xor_result = self.calculate_base_xor(&txid, &merkle_root)?;
-    let final_xor_result = base_xor_result.saturating_add(dust_bonus).saturating_add(alkamist_bonus);
-
-    // Determine stake token type and primary token ID
-    let (stake_token_type, primary_token_id) = if !alkamist_transfers.is_empty() && !dust_transfers.is_empty() {
-      (StakeTokenType::Mixed, alkamist_transfers[0].id.clone())
-    } else if !alkamist_transfers.is_empty() {
-      (StakeTokenType::Alkamist, alkamist_transfers[0].id.clone())
-    } else {
-      (StakeTokenType::Dust, dust_transfers[0].id.clone())
-    };
+    
+    // Calculate final XOR with overflow protection (using saturating_add to prevent overflow)
+    let final_xor_result = base_xor_result
+      .saturating_add(dust_bonus)
+      .saturating_add(alkamist_bonus);
 
     // Check if wand creation succeeds
     if final_xor_result < SUCCESS_THRESHOLD {
       // Wand creation fails - tokens are burned (consumed) to improve odds but failed
       self.add_tx_hash(&txid)?;
       self.record_loss_detailed(total_dust, total_alkamist)?;
-      return Err(anyhow!("Wand creation failed! XOR result {} < {}. Your dust/alkamist tokens were burned in the attempt.", final_xor_result, SUCCESS_THRESHOLD));
+      return Err(anyhow!(
+        "Wand creation failed! XOR result {} < {} (base: {}, dust bonus: {}, alkamist bonus: {}). Your tokens were burned in the attempt.",
+        final_xor_result, SUCCESS_THRESHOLD, base_xor_result, dust_bonus, alkamist_bonus
+      ));
     }
 
-    // Wand creation succeeds! Create orbital wand NFT
+    // FACTORY PATTERN: Wand creation succeeds! Create individual wand NFT using cellpack
     let wand_id = self.get_next_wand_id()?;
     let block_height = self.block_height()?;
 
+    // Determine wand type based on final XOR result
+    let wand_template_id = self.get_wand_template_id(final_xor_result);
+    let wand_type = self.get_wand_type_name(final_xor_result);
+
+    // Create cellpack to call the appropriate wand template
+    let cellpack = Cellpack {
+      target: AlkaneId {
+        block: WAND_TEMPLATE_BLOCK,
+        tx: wand_template_id,
+      },
+      // Pass wand creation data to the template
+      inputs: vec![
+        0x0,                    // Initialize opcode
+        wand_id,                // Wand ID
+        final_xor_result as u128, // Final XOR result
+        base_xor_result as u128,  // Base XOR result
+        dust_bonus as u128,       // Dust bonus
+        alkamist_bonus as u128,   // Alkamist bonus
+        total_dust,               // Dust amount
+        total_alkamist,           // Alkamist amount
+        block_height as u128,     // Block height
+        txid.to_byte_array()[0] as u128, // First byte of txid for uniqueness
+      ],
+    };
+
+    // Wand NFT receives NO underlying assets - it's purely an NFT
+    let wand_parcel = AlkaneTransferParcel::default();
+
+    let create_response = self.call(&cellpack, &wand_parcel, self.fuel())?;
+
+    if create_response.alkanes.0.is_empty() {
+      return Err(anyhow!("Wand NFT not returned by template"));
+    }
+
+    // Get the created wand NFT
+    let wand_nft = create_response.alkanes.0[0].clone();
+
+    // SECURITY CRITICAL: Register this wand NFT as our child
+    self.register_wand(&wand_nft.id);
+
+    // Store wand metadata for factory tracking
     let wand_metadata = WandMetadata {
       wand_id,
-      stake_token_id: primary_token_id,
-      stake_token_type,
+      stake_token_id: wand_nft.id.clone(), // The actual wand NFT ID
+      stake_token_type: if !alkamist_transfers.is_empty() && !dust_transfers.is_empty() {
+        StakeTokenType::Mixed
+      } else if !alkamist_transfers.is_empty() {
+        StakeTokenType::Alkamist
+      } else {
+        StakeTokenType::Dust
+      },
       txid,
       merkle_root,
       base_xor_result,
@@ -321,17 +383,13 @@ impl OrbitalWand {
       block_height,
     };
 
-    // Store wand metadata
     self.store_wand_metadata(&wand_metadata)?;
     self.record_win_detailed(total_dust, total_alkamist)?;
     self.add_tx_hash(&txid)?;
 
-    // Create response with new wand NFT
+    // Return the created wand NFT to the user
     let mut response = CallResponse::default();
-    response.alkanes.0.push(AlkaneTransfer {
-      id: context.myself.clone(),
-      value: 1u128,
-    });
+    response.alkanes.0.push(wand_nft);
 
     Ok(response)
   }
@@ -627,6 +685,31 @@ impl OrbitalWand {
     self.is_alkamist_token(id) || self.is_dust_token(id)
   }
 
+  // Factory helper functions
+  fn get_wand_template_id(&self, final_xor_result: u8) -> u128 {
+    match final_xor_result {
+      150..=170 => COMMON_WAND_TEMPLATE_ID,     // Common Wands
+      171..=190 => RARE_WAND_TEMPLATE_ID,       // Rare Wands
+      191..=210 => EPIC_WAND_TEMPLATE_ID,       // Epic Wands
+      211..=230 => LEGENDARY_WAND_TEMPLATE_ID,  // Legendary Wands
+      231..=250 => MYTHIC_WAND_TEMPLATE_ID,     // Mythic Wands
+      251..=255 => COSMIC_WAND_TEMPLATE_ID,     // Cosmic Wands
+      _ => COMMON_WAND_TEMPLATE_ID,             // Fallback to common (shouldn't happen)
+    }
+  }
+
+  fn get_wand_type_name(&self, final_xor_result: u8) -> String {
+    match final_xor_result {
+      150..=170 => "Common".to_string(),
+      171..=190 => "Rare".to_string(),
+      191..=210 => "Epic".to_string(),
+      211..=230 => "Legendary".to_string(),
+      231..=250 => "Mythic".to_string(),
+      251..=255 => "Cosmic".to_string(),
+      _ => "Common".to_string(), // Fallback
+    }
+  }
+
   /// Validate incoming alkanes similar to boiler's authenticate_position
   fn validate_incoming_alkanes(&self) -> Result<()> {
     let context = self.context()?;
@@ -643,10 +726,13 @@ impl OrbitalWand {
                           transfer.id.block, transfer.id.tx));
       }
 
-      // Validate that this is a valid alkamist or dust token
+      // CRITICAL: Validate that this is a valid alkamist or dust token (similar to boiler's token validation)
       if !self.is_valid_alkamist_or_dust(&transfer.id) {
         return Err(anyhow!(
-          "Invalid token ID {}:{} - must be valid Alkamist position (2:25720), Dust position (2:35275), or other Dust token from block 2",
+          "Invalid token ID - expected Alkamist position (block: {}, tx: {}), Dust position (block: {}, tx: {}), or other Dust token from block {}, got AlkaneId {{ block: {}, tx: {} }}",
+          ALKAMIST_TOKEN_BLOCK, ALKAMIST_TX,
+          DUST_TOKEN_BLOCK, DUST_TX,
+          DUST_TOKEN_BLOCK,
           transfer.id.block, transfer.id.tx
         ));
       }
@@ -947,10 +1033,125 @@ impl OrbitalWand {
       .set_value::<u8>(0x01);
     Ok(())
   }
+
+  // Child registration functions (like boiler's vault factory)
+  fn register_wand(&self, wand_id: &AlkaneId) {
+    // Maintain existing individual storage for O(1) lookups
+    let key = format!("/registered_wands/{}_{}", wand_id.block, wand_id.tx).into_bytes();
+    self.store(key, vec![1u8]);
+
+    // Add to centralized list for enumeration
+    let mut wands_list = self.registered_wands_list();
+    wands_list.push(wand_id.clone());
+    self.set_registered_wands_list(wands_list);
+
+    // Update count
+    let new_count = self.registered_wands_count().checked_add(1).unwrap_or(0);
+    self.set_registered_wands_count(new_count);
+  }
+
+  fn is_registered_wand_internal(&self, wand_id: &AlkaneId) -> bool {
+    let key = format!("/registered_wands/{}_{}", wand_id.block, wand_id.tx).into_bytes();
+    let bytes = self.load(key);
+    !bytes.is_empty() && bytes[0] == 1
+  }
+
+  fn is_registered_wand(&self, wand_id: AlkaneId) -> Result<CallResponse> {
+    let context = self.context()?;
+    let mut response = CallResponse::forward(&context.incoming_alkanes);
+    let is_registered = self.is_registered_wand_internal(&wand_id);
+    response.data = vec![if is_registered { 1u8 } else { 0u8 }];
+    Ok(response)
+  }
+
+  fn get_all_registered_wands(&self) -> Result<CallResponse> {
+    let context = self.context()?;
+    let mut response = CallResponse::forward(&context.incoming_alkanes);
+
+    // Get all registered wands from centralized list
+    let wands_list = self.registered_wands_list();
+    let wands_count = wands_list.len();
+
+    // Encode the registered wands as bytes for external consumption
+    // Format: [count (8 bytes)] + [AlkaneId_1 (32 bytes)] + [AlkaneId_2 (32 bytes)] + ...
+    // Each AlkaneId: [block (16 bytes)] + [tx (16 bytes)]
+    let mut data = Vec::new();
+
+    // Add count of registered wands (as u64 for compatibility)
+    data.extend_from_slice(&(wands_count as u64).to_le_bytes());
+
+    // Add each registered wand AlkaneId
+    for wand in wands_list {
+      data.extend_from_slice(&wand.block.to_le_bytes()); // 16 bytes
+      data.extend_from_slice(&wand.tx.to_le_bytes());    // 16 bytes
+    }
+
+    response.data = data;
+    Ok(response)
+  }
+
+  fn registered_wands_list(&self) -> Vec<AlkaneId> {
+    let bytes = self.load("/registered_wands_list".as_bytes().to_vec());
+    if bytes.is_empty() {
+      return Vec::new();
+    }
+
+    let mut wands = Vec::new();
+    let mut offset = 0;
+
+    // Each AlkaneId is 32 bytes (16 bytes block + 16 bytes tx)
+    while offset + 32 <= bytes.len() {
+      let block_bytes: [u8; 16] = bytes[offset..offset+16].try_into().unwrap_or([0; 16]);
+      let tx_bytes: [u8; 16] = bytes[offset+16..offset+32].try_into().unwrap_or([0; 16]);
+      
+      wands.push(AlkaneId {
+        block: u128::from_le_bytes(block_bytes),
+        tx: u128::from_le_bytes(tx_bytes),
+      });
+      
+      offset += 32;
+    }
+
+    wands
+  }
+
+  fn set_registered_wands_list(&self, wands: Vec<AlkaneId>) {
+    let mut bytes = Vec::new();
+    
+    for wand in wands {
+      bytes.extend_from_slice(&wand.block.to_le_bytes());
+      bytes.extend_from_slice(&wand.tx.to_le_bytes());
+    }
+    
+    self.store("/registered_wands_list".as_bytes().to_vec(), bytes);
+  }
+
+  fn registered_wands_count(&self) -> u128 {
+    self.load_u128("/registered_wands_count")
+  }
+
+  fn set_registered_wands_count(&self, count: u128) {
+    self.store(
+      "/registered_wands_count".as_bytes().to_vec(),
+      count.to_le_bytes().to_vec(),
+    );
+  }
+
+  // Helper function to load u128 values from storage (like boiler)
+  fn load_u128(&self, key_str: &str) -> u128 {
+    let key = key_str.as_bytes().to_vec();
+    let bytes = self.load(key);
+    if bytes.len() >= 16 {
+      let bytes_array: [u8; 16] = bytes[0..16].try_into().unwrap_or([0; 16]);
+      u128::from_le_bytes(bytes_array)
+    } else {
+      0
+    }
+  }
 }
 
 declare_alkane! {
-  impl AlkaneResponder for OrbitalWand {
-    type Message = OrbitalWandMessage;
+  impl AlkaneResponder for OrbitalWandFactory {
+    type Message = OrbitalWandFactoryMessage;
   }
 }

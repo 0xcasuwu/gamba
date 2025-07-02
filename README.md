@@ -1,222 +1,336 @@
-# 🎲 Gamba - Orbital Wand Gambling Contract
+# 🪄 Gamba - Orbital Wand Factory
 
-**Position token staking meets cryptographic gambling with dust-enhanced odds and beautiful NFT rewards**
+**Factory-based wand creation system using alkamist/dust tokens with cellpack architecture and boiler security patterns**
 
 ## 🌟 Overview
 
-Gamba is an innovative gambling contract that combines position token staking with dust-enhanced odds and stunning visual rewards. Players stake position tokens along with dust to participate in a provably fair game where higher dust amounts improve their chances. Winners receive beautiful, animated orbital wand SVG NFTs!
+Gamba is an **Orbital Wand Factory** that creates individual wand NFTs through a gambling mechanism. Players send alkamist or dust tokens to improve their odds of successfully creating a wand. The factory uses boiler's proven security patterns and cellpack architecture to create individual wand NFTs from predefined templates.
+
+## 🏗️ Factory Architecture
+
+### Core Concept
+- **Factory Pattern**: `OrbitalWandFactory` creates individual wand NFTs using cellpack calls
+- **Predefined Templates**: Six wand template contracts for different rarities
+- **Token Burning**: Alkamist/dust tokens are burned to improve creation odds
+- **Child Registration**: Factory tracks all created wand NFTs for security
+
+### Wand Template System
+```rust
+// Predefined template IDs for each wand type
+const COMMON_WAND_TEMPLATE_ID: u128 = 0x1001;     // 150-170 XOR
+const RARE_WAND_TEMPLATE_ID: u128 = 0x1002;       // 171-190 XOR  
+const EPIC_WAND_TEMPLATE_ID: u128 = 0x1003;       // 191-210 XOR
+const LEGENDARY_WAND_TEMPLATE_ID: u128 = 0x1004;  // 211-230 XOR
+const MYTHIC_WAND_TEMPLATE_ID: u128 = 0x1005;     // 231-250 XOR
+const COSMIC_WAND_TEMPLATE_ID: u128 = 0x1006;     // 251-255 XOR
+```
 
 ## 🎮 How It Works
 
-### The Enhanced Gamble
-1. **Stake**: Send a position token + at least 1000 dust to the contract
-2. **Dust Bonus**: For every 1000 dust above 2000, get +10 XOR bonus points
-3. **Randomness**: Contract XORs the last byte of the current block's merkle root with your transaction ID's last byte
-4. **Enhanced Calculation**: Base XOR + Dust Bonus = Final XOR
-5. **Outcome**: 
-   - Final XOR < 141: **You lose** - your stake is consumed
-   - Final XOR ≥ 141: **You win** - you receive an orbital wand NFT!
+### Wand Creation Process
+1. **Send Tokens**: Send alkamist (2:25720) or dust (2:35275) tokens to factory
+2. **Calculate Bonuses**: 
+   - Dust: +10 points per 1000 dust above 2000 threshold
+   - Alkamist: +5 points per alkamist token
+3. **Roll Calculation**: Base XOR (merkle root last byte) + bonuses
+4. **Success Check**: If final XOR ≥ 150, wand creation succeeds
+5. **Template Selection**: Factory selects template based on final XOR result
+6. **Cellpack Creation**: Factory calls appropriate template with creation data
+7. **NFT Return**: User receives individual wand NFT with unique properties
 
-### Dust Enhancement System
-- **Minimum Stake**: 1000 dust required
-- **Bonus Threshold**: 2000+ dust starts giving bonuses
-- **Bonus Rate**: +10 XOR points per 1000 dust increment
-- **Examples**:
-  - 1000 dust = +0 bonus (base odds)
-  - 2000 dust = +10 bonus 
-  - 3000 dust = +20 bonus
-  - 5000 dust = +40 bonus
-  - 10000 dust = +90 bonus
+### Token Requirements
+- **Alkamist**: Minimum 1 token from position 2:25720
+- **Dust**: Minimum 1000 tokens from position 2:35275 or other block 2 tokens
+- **Mixed**: Can send both alkamist and dust for maximum bonuses
 
-### Why It's Fair
-- **Deterministic**: Uses block merkle root (miner-controlled) + transaction ID (user-controlled)
-- **Transparent**: Dust bonuses are clearly calculated and displayed
-- **Skill-based**: Players can improve odds by staking more dust
-- **Verifiable**: All randomness sources and calculations are on-chain
-- **No Oracles**: No external dependencies or trusted third parties
+### Success Threshold & Odds
+- **Base Threshold**: 150 (values 150-255 succeed)
+- **Base Win Rate**: ~41.4% (106/256 possible outcomes)
+- **Enhanced Odds**: Bonuses reduce effective threshold
+- **Example**: 5000 dust (+40 bonus) = ~57.0% win rate
 
-## 🪄 Orbital Wand NFTs
+## 🔧 Technical Implementation
 
-Winners receive stunning, animated SVG NFTs featuring:
+### Factory Contract: `OrbitalWandFactory`
 
-### 🎨 Visual Features
-- **Animated orbital wand** with magical orb, crystalline shaft, and ornate handle
-- **Rotating orbital rings** around the magical core
-- **Floating dust particles** with golden shimmer effects
-- **Dynamic breathing animations** and magical sparkles
-- **Dust enhancement display** showing your bonus contribution
-- **Responsive color schemes** based on your unique final XOR result
+#### Core Functions
+```rust
+#[opcode(42)]
+CastWand,                    // Main wand creation function
 
-### ⚡ Wand Properties
-- **7 Wand Types**: Stellar, Nebula, Quantum, Cosmic, Void, Plasma, Orbital
-- **6 Power Levels**: Apprentice → Adept → Expert → Master → Grandmaster → Cosmic
-- **Unique Colors**: 6 different magical color schemes
-- **Dust Enhancement**: Visual representation of your dust bonus
-- **Cryptographic Proof**: Shows position token, dust amount, base XOR, bonus, and final result
+#[opcode(1000)]
+GetData,                     // Returns SVG for latest wand
 
-### 🏆 Power Level Tiers (Based on Final XOR)
-- **141-160**: Apprentice Wand
-- **161-180**: Adept Wand  
-- **181-200**: Expert Wand
-- **201-220**: Master Wand
-- **221-240**: Grandmaster Wand
-- **241-255**: Cosmic Wand (Ultra Rare!)
+#[opcode(2000)]
+GetWandCount,                // Total wands created
 
-## 🔧 Technical Architecture
+#[opcode(3000)]
+GetAllRegisteredWands,       // All registered wand NFTs
 
-### Core Contract: `OrbitalWand`
-- **Opcode 42**: `cast_wand(position_token_id)` - Main gambling function
-- **Opcode 1000**: `get_data()` - Returns SVG for latest wand
-- **Opcode 2000**: `get_wand_count()` - Total wands minted
-- **Opcode 2001**: `get_wand_list()` - All wand metadata
+#[opcode(3001)]
+IsRegisteredWand,            // Check if wand is factory-created
+```
 
-### Dust Swap Contract: `DustSwap`
-- **Opcode 42**: `position_to_dust()` - Convert position tokens to dust
-- **Opcode 69**: `dust_to_position()` - Convert dust back to position tokens
-- **1:1 Ratio**: Each position token = 10,000,000,000,000 dust units
+#### Cellpack Creation Pattern
+```rust
+let cellpack = Cellpack {
+    target: AlkaneId {
+        block: WAND_TEMPLATE_BLOCK,
+        tx: wand_template_id,
+    },
+    inputs: vec![
+        0x0,                    // Initialize opcode
+        wand_id,                // Wand ID
+        final_xor_result as u128, // Final XOR result
+        base_xor_result as u128,  // Base XOR result
+        dust_bonus as u128,       // Dust bonus
+        alkamist_bonus as u128,   // Alkamist bonus
+        total_dust,               // Dust amount
+        total_alkamist,           // Alkamist amount
+        block_height as u128,     // Block height
+        txid.to_byte_array()[0] as u128, // Uniqueness
+    ],
+};
+```
 
-### Security Features
-- **Anti-replay protection**: Each transaction can only be used once
-- **Position token validation**: Only valid position tokens accepted
-- **Dust amount verification**: Minimum 1000 dust required
-- **Fair enhancement**: Dust bonuses are capped and transparent
-- **Efficient storage**: 115 bytes per wand (includes dust data)
+### Security Patterns (Inherited from Boiler)
 
-### Enhanced SVG Generation
-- **Dynamic rendering** based on final XOR result
-- **Dust particle animations** reflecting your stake
-- **Bonus visualization** showing dust enhancement
-- **Rich metadata** embedded in the artwork
+#### 1. Transaction Replay Protection
+```rust
+fn has_tx_hash(&self, txid: &Txid) -> bool
+fn add_tx_hash(&self, txid: &Txid) -> Result<()>
+```
 
-## 🚀 Getting Started
+#### 2. Child Registration Security
+```rust
+fn register_wand(&self, wand_id: &AlkaneId)
+fn is_registered_wand_internal(&self, wand_id: &AlkaneId) -> bool
+```
+
+#### 3. Overflow Protection
+```rust
+// All arithmetic uses checked operations
+let total_alkamist: u128 = alkamist_transfers.iter()
+    .try_fold(0u128, |acc, t| acc.checked_add(t.value))
+    .ok_or_else(|| anyhow!("Alkamist amount overflow"))?;
+```
+
+#### 4. Input Validation
+```rust
+fn validate_incoming_alkanes(&self) -> Result<()>
+fn is_valid_alkamist_or_dust(&self, id: &AlkaneId) -> bool
+```
+
+## 🎯 Wand Types & Rarities
+
+### By XOR Result Range
+- **150-170**: Common Wands (Template 0x1001)
+- **171-190**: Rare Wands (Template 0x1002)
+- **191-210**: Epic Wands (Template 0x1003)
+- **211-230**: Legendary Wands (Template 0x1004)
+- **231-250**: Mythic Wands (Template 0x1005)
+- **251-255**: Cosmic Wands (Template 0x1006) - Ultra Rare!
+
+### Wand Properties
+- **Unique ID**: Sequential factory-assigned ID
+- **Template Type**: Determined by final XOR result
+- **Creation Data**: Embedded alkamist/dust amounts, bonuses, block height
+- **Factory Provenance**: Registered as factory child for authenticity
+
+## 🚀 Development Setup
 
 ### Prerequisites
-- Position tokens from the position token contract
-- Dust tokens (obtainable by converting position tokens)
+- Rust 1.70+
 - Alkane runtime environment
+- Position tokens at 2:25720 (alkamist) and 2:35275 (dust)
 
 ### Building
 ```bash
-git clone https://github.com/your-org/gamba
+git clone <repository>
 cd gamba
 cargo build --release
 ```
 
-### Testing
+### Testing (Indexer-Based Only)
 ```bash
-cargo test
+# Run comprehensive integration tests
+cargo test --test orbital_wand_integration_test
+
+# All tests use index_block methods for proper indexer testing
 ```
 
-## 📊 Game Statistics & Strategy
-
-### Base Odds (1000 dust, no bonus)
-- **Win Rate**: ~44.9% (115/256 possible base XOR outcomes ≥ 141)
-- **Loss Rate**: ~55.1% (141/256 possible base XOR outcomes < 141)
-
-### Enhanced Odds Examples
-- **3000 dust (+20 bonus)**: ~52.7% win rate (base XOR ≥ 121 wins)
-- **5000 dust (+40 bonus)**: ~60.5% win rate (base XOR ≥ 101 wins)
-- **10000 dust (+90 bonus)**: ~80.1% win rate (base XOR ≥ 51 wins)
-
-### Strategy Tips
-- **Risk vs Reward**: Higher dust = better odds but larger loss if you fail
-- **Dust Management**: Convert position tokens to dust strategically
-- **Timing**: Block merkle roots are unpredictable, so timing doesn't matter
-- **Bankroll**: Only gamble with dust you can afford to lose
-
-## 🎯 Usage Example
-
-```rust
-// Initialize the contracts
-let gamba = OrbitalWand::new();
-let dust_swap = DustSwap::new();
-
-// Convert position token to dust
-let position_token = AlkaneId { block: 2, tx: 12345 };
-dust_swap.position_to_dust(); // Sends position token, receives dust
-
-// Player stakes position token + dust for enhanced odds
-let dust_amount = 5000; // +40 XOR bonus
-let result = gamba.cast_wand(position_token); // Also send dust in transaction
-
-// Check the outcome
-match result {
-    Ok(response) => {
-        // Success! You won an orbital wand NFT
-        println!("🎉 Victory! Base XOR + {} dust bonus = win!", dust_amount);
-    },
-    Err(e) => {
-        // Your stake was consumed
-        println!("💸 Base XOR + dust bonus still < 141. Better luck next time!");
-    }
-}
-```
+### Build System
+The build system generates real WASM bytecode:
+- `build.rs` compiles contracts to WASM
+- Generated files: `dust_swap.wasm`, `orbital_wand_factory.wasm`
+- Test helpers: `src/tests/std/*_build.rs` use `include_bytes!` for real bytecode
 
 ## 📁 Project Structure
 
 ```
 gamba/
 ├── src/
-│   ├── lib.rs              # DustSwap contract for position/dust conversion
-│   ├── orbital_wand.rs     # Core gambling contract with dust bonuses
-│   ├── wand_svg.rs         # Enhanced SVG generation with dust effects
-│   └── test_orbital_wand.rs # Comprehensive tests including dust mechanics
-├── Cargo.toml              # Project dependencies
-├── build.rs                # Build script
-├── ORBITAL_WAND_README.md  # Detailed technical docs
-├── DEPLOYMENT.md           # Deployment guide
-└── README.md               # This file
+│   ├── lib.rs                          # Module exports
+│   ├── orbital_wand.rs                 # OrbitalWandFactory implementation
+│   ├── probability.rs                  # Probability calculations
+│   ├── wand_svg.rs                     # SVG generation
+│   └── tests/
+│       ├── mod.rs                      # Test module declarations
+│       ├── orbital_wand_integration_test.rs  # Comprehensive indexer tests
+│       └── std/
+│           ├── mod.rs                  # Build helper modules
+│           ├── dust_swap_build.rs      # DustSwap bytecode helper
+│           └── orbital_wand_build.rs   # Factory bytecode helper
+├── build.rs                            # Build script for WASM generation
+├── Cargo.toml                          # Dependencies
+└── README.md                           # This file
 ```
+
+## 🔒 Security Features
+
+### Inherited from Boiler Vault Factory
+1. **Transaction Replay Protection**: Each transaction can only be used once
+2. **Child Registration**: All created wands are registered and tracked
+3. **Overflow Protection**: All arithmetic uses checked operations
+4. **Input Validation**: Strict token ID and value validation
+5. **Initialization Protection**: `observe_initialization()` prevents re-init
+6. **Detailed Error Messages**: Comprehensive error reporting
+
+### Factory-Specific Security
+1. **Template Validation**: Only calls predefined wand templates
+2. **Token Burning**: Tokens are consumed regardless of success/failure
+3. **Randomness**: Uses merkle root last byte for cryptographic randomness
+4. **Bonus Caps**: Dust/alkamist bonuses are capped to prevent overflow
+
+## 🎲 Probability & Economics
+
+### Base Mechanics
+- **Randomness Source**: Last byte of merkle root (0-255)
+- **Success Threshold**: 150 (41.4% base win rate)
+- **Token Burning**: All sent tokens are burned (deflationary)
+
+### Bonus System
+```rust
+// Dust bonus: +10 per 1000 dust above 2000 threshold
+let dust_bonus = if dust_amount >= 2000 {
+    std::cmp::min(((dust_amount - 2000) / 1000) * 10, 255) as u8
+} else { 0 };
+
+// Alkamist bonus: +5 per alkamist token
+let alkamist_bonus = std::cmp::min(alkamist_amount * 5, 255) as u8;
+```
+
+### Strategy Examples
+- **1000 dust**: 41.4% win rate (no bonus)
+- **3000 dust**: 45.3% win rate (+10 bonus)
+- **5000 dust**: 49.2% win rate (+20 bonus)
+- **1 alkamist**: 43.4% win rate (+5 bonus)
+- **5000 dust + 2 alkamist**: 53.1% win rate (+30 total bonus)
+
+## 🔄 Integration with Ecosystem
+
+### Required Template Contracts
+The factory requires six wand template contracts deployed at:
+- Block 6, TX 0x1001-0x1006 (Common through Cosmic)
+- Each template must implement initialization opcode 0x0
+- Templates receive creation data via cellpack inputs
+
+### Position Token Integration
+- **Alkamist Position**: Block 2, TX 25720
+- **Dust Position**: Block 2, TX 35275
+- **Backward Compatibility**: Accepts any block 2 tokens as dust (except alkamist)
+
+## 🧪 Testing Architecture
+
+### Comprehensive Integration Tests
+- **`test_orbital_wand_comprehensive_integration()`**: Full system test
+- **`test_orbital_wand_edge_cases()`**: Edge case validation
+- **All tests use `index_block()` methods**: Proper indexer testing
+- **Multi-scenario testing**: Different dust/alkamist combinations
+- **State verification**: Before/after state comparison
+- **Trace analysis**: Comprehensive execution trace capture
+
+### Test Coverage
+- Contract deployment and initialization
+- Position token conversion flows
+- Gambling mechanics with various stakes
+- SVG generation and metadata
+- Statistical analysis and win rate verification
+- Edge cases (zero dust, maximum dust, invalid opcodes)
+
+## 🚀 Deployment Guide
+
+### 1. Template Deployment
+Deploy six wand template contracts to block 6, TX 0x1001-0x1006
+
+### 2. Factory Deployment
+Deploy `OrbitalWandFactory` contract
+
+### 3. Initialization
+Call initialize opcode (0x0) on factory
+
+### 4. Verification
+- Test wand creation with various token amounts
+- Verify child registration works correctly
+- Confirm SVG generation functions properly
+
+## 📊 Monitoring & Analytics
+
+### Factory Statistics
+- Total wands created: `GetWandCount()`
+- Win rate tracking: `GetWinRate()`
+- Token consumption: `GetTotalDustConsumed()`, `GetTotalAlkamistConsumed()`
+- Registered wands: `GetAllRegisteredWands()`
+
+### Performance Metrics
+- Average gas per wand creation
+- Template distribution (Common vs Rare vs Epic, etc.)
+- User behavior patterns (dust vs alkamist preferences)
 
 ## 🔮 Future Enhancements
 
-- **Dust Mining**: Earn dust through various activities
-- **Wand Battles**: PvP combat system using wands with dust-based power
-- **Spell Casting**: Use wands + dust to interact with other contracts
-- **Wand Fusion**: Combine multiple wands + dust for upgrades
-- **Seasonal Events**: Limited-time dust multipliers and special wand types
-- **Dust Staking**: Earn rewards by staking dust long-term
+### Template System Expansion
+- Additional wand types and rarities
+- Seasonal or event-specific templates
+- Community-created template submissions
 
-## 🛡️ Security Considerations
+### Enhanced Mechanics
+- Multi-token staking (combine different position types)
+- Time-based bonuses or penalties
+- Wand utility in other contracts
 
-- **Randomness Source**: Uses block merkle root + transaction ID
-- **Replay Protection**: Transaction hash tracking prevents double-spending
-- **Fair Enhancement**: Dust bonuses are mathematically transparent
-- **Position Token Validation**: Only accepts valid position tokens
-- **Dust Amount Verification**: Enforces minimum stake requirements
-- **No Admin Keys**: Fully decentralized operation
+### Economic Features
+- Wand marketplace integration
+- Staking rewards for wand holders
+- Governance tokens for template approval
 
-## 📈 Economic Model
+## ⚠️ Important Notes for Next LLM
 
-### Dust Economy
-- **Position Token Conversion**: 1 position token = 10T dust units
-- **Minimum Gamble**: 1000 dust (0.00001% of a position token)
-- **Bonus Scaling**: Linear +10 per 1000 dust increment
-- **Deflationary**: Lost stakes are burned, reducing dust supply
+### Critical Architecture Points
+1. **Factory Pattern**: This is NOT a simple gambling contract - it's a factory that creates individual NFTs
+2. **Cellpack Usage**: Uses boiler's cellpack pattern to call template contracts
+3. **Child Registration**: MUST register all created wands for security
+4. **Token Burning**: Tokens are consumed regardless of outcome (not returned)
+5. **Template Dependencies**: Requires six template contracts to be deployed first
 
-### Wand Value
-- **Rarity**: Higher dust stakes can produce rarer wands
-- **Utility**: Wands may have future utility in other contracts
-- **Collectibility**: Each wand is unique with provable dust enhancement
+### Security Considerations
+1. **Boiler Inheritance**: Security patterns are inherited from boiler vault factory
+2. **Position Validation**: Only accepts specific alkamist/dust positions
+3. **Overflow Protection**: All arithmetic must use checked operations
+4. **Replay Protection**: Transaction hash tracking is critical
 
-## 📜 License
+### Testing Requirements
+1. **Indexer-Only**: All tests MUST use `index_block()` methods
+2. **Integration Focus**: No unit tests - only comprehensive integration tests
+3. **Real Bytecode**: Build system generates actual WASM, no placeholders
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## ⚠️ Disclaimer
-
-This is gambling software with enhanced mechanics. Please gamble responsibly and only with funds you can afford to lose. While dust bonuses improve your odds, losses are still possible. This is intended for entertainment purposes.
+### Build System
+1. **WASM Generation**: `build.rs` compiles to real bytecode
+2. **Include Bytes**: Test helpers use `include_bytes!` for generated WASM
+3. **Template Coordination**: Factory and templates must be built together
 
 ---
 
-**Built with ❤️ on the Alkane blockchain**
+**Built with 🏗️ Factory Pattern + 🔒 Boiler Security + 🎲 Provable Randomness**
 
-*May your dust enhance your fortune!* 🎲✨💫
+*May your tokens forge legendary wands!* 🪄✨🔥
