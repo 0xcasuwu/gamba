@@ -109,22 +109,45 @@ fn main() {
         .unwrap();
     std::env::set_current_dir(&crates_dir).unwrap();
 
+    // Build factory contract
+    std::env::set_current_dir(&crates_dir.join("factory")).unwrap();
     build_alkane(wasm_str, vec![]).unwrap();
-    let mod_name = "alkane_pandas_ap69".to_owned();
-    let f: Vec<u8> = fs::read(
+    let factory_name = "orbital_wand_factory".to_owned();
+    let factory_wasm: Vec<u8> = fs::read(
         &Path::new(&wasm_str)
             .join("wasm32-unknown-unknown")
             .join("release")
-            .join(mod_name.clone() + ".wasm"),
+            .join(factory_name.clone() + ".wasm"),
     )
     .unwrap();
-    let compressed: Vec<u8> = compress(f.clone()).unwrap();
+    let factory_compressed: Vec<u8> = compress(factory_wasm.clone()).unwrap();
     fs::write(
         &Path::new(&wasm_str)
             .join("wasm32-unknown-unknown")
             .join("release")
-            .join(mod_name.clone() + ".wasm.gz"),
-        &compressed,
+            .join(factory_name.clone() + ".wasm.gz"),
+        &factory_compressed,
+    )
+    .unwrap();
+
+    // Build wand template contract
+    std::env::set_current_dir(&crates_dir.join("wand-template")).unwrap();
+    build_alkane(wasm_str, vec![]).unwrap();
+    let template_name = "wand_template".to_owned();
+    let template_wasm: Vec<u8> = fs::read(
+        &Path::new(&wasm_str)
+            .join("wasm32-unknown-unknown")
+            .join("release")
+            .join(template_name.clone() + ".wasm"),
+    )
+    .unwrap();
+    let template_compressed: Vec<u8> = compress(template_wasm.clone()).unwrap();
+    fs::write(
+        &Path::new(&wasm_str)
+            .join("wasm32-unknown-unknown")
+            .join("release")
+            .join(template_name.clone() + ".wasm.gz"),
+        &template_compressed,
     )
     .unwrap();
 }

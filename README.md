@@ -16,27 +16,25 @@ Gamba is an **Orbital Wand Factory** that creates individual wand NFTs through a
 
 ### Wand Template System
 ```rust
-// Predefined template IDs for each wand type
-const COMMON_WAND_TEMPLATE_ID: u128 = 0x1001;     // 150-170 XOR
-const RARE_WAND_TEMPLATE_ID: u128 = 0x1002;       // 171-190 XOR  
-const EPIC_WAND_TEMPLATE_ID: u128 = 0x1003;       // 191-210 XOR
-const LEGENDARY_WAND_TEMPLATE_ID: u128 = 0x1004;  // 211-230 XOR
-const MYTHIC_WAND_TEMPLATE_ID: u128 = 0x1005;     // 231-250 XOR
-const COSMIC_WAND_TEMPLATE_ID: u128 = 0x1006;     // 251-255 XOR
+// Single wand template ID - one template for all wand types
+const WAND_TEMPLATE_ID: u128 = 0x1001;           // Single wand template
+
+// Rarity and type determined by interpolating imprinted state into SVG
 ```
 
 ## 🎮 How It Works
 
 ### Wand Creation Process
 1. **Send Tokens**: Send alkamist (2:25720) or dust (2:35275) tokens to factory
-2. **Calculate Bonuses**: 
+2. **Calculate Bonuses**:
    - Dust: +10 points per 1000 dust above 2000 threshold
    - Alkamist: +5 points per alkamist token
 3. **Roll Calculation**: Base XOR (merkle root last byte) + bonuses
 4. **Success Check**: If final XOR ≥ 150, wand creation succeeds
-5. **Template Selection**: Factory selects template based on final XOR result
-6. **Cellpack Creation**: Factory calls appropriate template with creation data
-7. **NFT Return**: User receives individual wand NFT with unique properties
+5. **Cellpack Creation**: Factory calls single wand template with creation data
+7. **State Imprinting**: Wand gets creation data imprinted during initialization (wand_id, XOR results, bonuses, amounts, etc.)
+8. **NFT Return**: User receives individual wand NFT token with imprinted state
+9. **SVG Generation**: When opcode 1000 is called on wand, it proxies back to factory for main template and interpolates its own imprinted values
 
 ### Token Requirements
 - **Alkamist**: Minimum 1 token from position 2:25720
@@ -58,17 +56,29 @@ const COSMIC_WAND_TEMPLATE_ID: u128 = 0x1006;     // 251-255 XOR
 #[opcode(42)]
 CastWand,                    // Main wand creation function
 
-#[opcode(1000)]
-GetData,                     // Returns SVG for latest wand
-
 #[opcode(2000)]
 GetWandCount,                // Total wands created
+
+#[opcode(2001)]
+GetWandList,                 // Master list of all wand metadata
 
 #[opcode(3000)]
 GetAllRegisteredWands,       // All registered wand NFTs
 
 #[opcode(3001)]
 IsRegisteredWand,            // Check if wand is factory-created
+```
+
+#### Individual Wand Token Functions
+```rust
+#[opcode(1000)]
+GetData,                     // Individual wand generates its own SVG by calling back to factory
+
+#[opcode(1001)]
+GetContentType,              // Returns "image/svg+xml"
+
+#[opcode(1002)]
+GetAttributes,               // Returns wand metadata as JSON
 ```
 
 #### Cellpack Creation Pattern
@@ -78,19 +88,37 @@ let cellpack = Cellpack {
         block: WAND_TEMPLATE_BLOCK,
         tx: wand_template_id,
     },
+    // These inputs become the imprinted state in the individual wand NFT
     inputs: vec![
         0x0,                    // Initialize opcode
-        wand_id,                // Wand ID
-        final_xor_result as u128, // Final XOR result
-        base_xor_result as u128,  // Base XOR result
-        dust_bonus as u128,       // Dust bonus
-        alkamist_bonus as u128,   // Alkamist bonus
-        total_dust,               // Dust amount
-        total_alkamist,           // Alkamist amount
-        block_height as u128,     // Block height
-        txid.to_byte_array()[0] as u128, // Uniqueness
+        wand_id,                // Wand ID (imprinted)
+        final_xor_result as u128, // Final XOR result (imprinted)
+        base_xor_result as u128,  // Base XOR result (imprinted)
+        dust_bonus as u128,       // Dust bonus (imprinted)
+        alkamist_bonus as u128,   // Alkamist bonus (imprinted)
+        total_dust,               // Dust amount (imprinted)
+        total_alkamist,           // Alkamist amount (imprinted)
+        block_height as u128,     // Block height (imprinted)
+        txid.to_byte_array()[0] as u128, // Uniqueness (imprinted)
     ],
 };
+```
+
+#### State Imprinting Process
+During cellpack initialization, the wand template receives and stores these values as its internal state:
+- **Wand Identity**: Unique ID and creation metadata
+- **XOR Results**: Base randomness and final calculated result
+- **Token Data**: Amounts of dust/alkamist burned for creation
+- **Bonuses**: Calculated enhancement values
+- **Block Context**: Creation block height and transaction uniqueness
+
+#### SVG Generation Architecture
+```rust
+// When opcode 1000 is called on individual wand NFT:
+// 1. Wand reads its own imprinted state
+// 2. Wand proxies call to factory for main SVG template
+// 3. Wand interpolates its imprinted values into template
+// 4. Returns customized SVG specific to this wand's properties
 ```
 
 ### Security Patterns (Inherited from Boiler)
@@ -123,19 +151,20 @@ fn is_valid_alkamist_or_dust(&self, id: &AlkaneId) -> bool
 
 ## 🎯 Wand Types & Rarities
 
-### By XOR Result Range
-- **150-170**: Common Wands (Template 0x1001)
-- **171-190**: Rare Wands (Template 0x1002)
-- **191-210**: Epic Wands (Template 0x1003)
-- **211-230**: Legendary Wands (Template 0x1004)
-- **231-250**: Mythic Wands (Template 0x1005)
-- **251-255**: Cosmic Wands (Template 0x1006) - Ultra Rare!
+### By XOR Result Range (Determined by Wand Template)
+- **150-170**: Common Wands
+- **171-190**: Rare Wands
+- **191-210**: Epic Wands
+- **211-230**: Legendary Wands
+- **231-250**: Mythic Wands
+- **251-255**: Cosmic Wands - Ultra Rare!
 
 ### Wand Properties
 - **Unique ID**: Sequential factory-assigned ID
 - **Template Type**: Determined by final XOR result
-- **Creation Data**: Embedded alkamist/dust amounts, bonuses, block height
+- **Imprinted State**: Creation data permanently stored during initialization (XOR results, token amounts, bonuses, block height)
 - **Factory Provenance**: Registered as factory child for authenticity
+- **Self-Rendering**: Reads own imprinted state, proxies to factory for template, interpolates values for unique SVG
 
 ## 🚀 Development Setup
 
@@ -148,41 +177,51 @@ fn is_valid_alkamist_or_dust(&self, id: &AlkaneId) -> bool
 ```bash
 git clone <repository>
 cd gamba
-cargo build --release
+cargo build --release  # Builds both factory and wand template contracts
 ```
 
 ### Testing (Indexer-Based Only)
 ```bash
-# Run comprehensive integration tests
-cargo test --test orbital_wand_integration_test
+# Run comprehensive integration tests on factory (includes wand template testing)
+cargo test -p orbital-wand-factory --test orbital_wand_integration_test
 
 # All tests use index_block methods for proper indexer testing
+# Tests include:
+# - Factory deployment and initialization
+# - Wand template deployment and initialization
+# - Individual wand NFT functionality testing
+# - SVG generation by individual wands
+# - Multi-scenario gambling with various token amounts
 ```
 
 ### Build System
-The build system generates real WASM bytecode:
-- `build.rs` compiles contracts to WASM
-- Generated files: `dust_swap.wasm`, `orbital_wand_factory.wasm`
-- Test helpers: `src/tests/std/*_build.rs` use `include_bytes!` for real bytecode
+The build system generates real WASM bytecode for both contracts:
+- `build.rs` compiles both factory and wand template to WASM
+- Generated files: `orbital_wand_factory.wasm`, `wand_template.wasm`
+- Workspace structure with separate contracts for factory and template
+- Test helpers: `factory/src/tests/std/*_build.rs` use `include_bytes!` for real bytecode
 
 ## 📁 Project Structure
 
 ```
 gamba/
-├── src/
-│   ├── lib.rs                          # Module exports
-│   ├── orbital_wand.rs                 # OrbitalWandFactory implementation
-│   ├── probability.rs                  # Probability calculations
-│   ├── wand_svg.rs                     # SVG generation
-│   └── tests/
-│       ├── mod.rs                      # Test module declarations
-│       ├── orbital_wand_integration_test.rs  # Comprehensive indexer tests
-│       └── std/
-│           ├── mod.rs                  # Build helper modules
-│           ├── dust_swap_build.rs      # DustSwap bytecode helper
-│           └── orbital_wand_build.rs   # Factory bytecode helper
-├── build.rs                            # Build script for WASM generation
-├── Cargo.toml                          # Dependencies
+├── factory/
+│   ├── src/
+│   │   ├── lib.rs                      # Factory module exports
+│   │   ├── orbital_wand.rs             # OrbitalWandFactory implementation
+│   │   ├── probability.rs              # Probability calculations
+│   │   ├── wand_svg.rs                 # SVG generation
+│   │   └── tests/                      # Factory tests
+│   └── Cargo.toml                      # Factory dependencies
+├── wand-template/
+│   ├── src/
+│   │   ├── lib.rs                      # Template module exports
+│   │   ├── wand_template.rs            # WandTemplate implementation
+│   │   └── wand_svg.rs                 # SVG generation
+│   └── Cargo.toml                      # Template dependencies
+├── src/                                # Legacy source (for reference)
+├── build.rs                            # Build script for both contracts
+├── Cargo.toml                          # Workspace configuration
 └── README.md                           # This file
 ```
 
@@ -229,11 +268,14 @@ let alkamist_bonus = std::cmp::min(alkamist_amount * 5, 255) as u8;
 
 ## 🔄 Integration with Ecosystem
 
-### Required Template Contracts
-The factory requires six wand template contracts deployed at:
-- Block 6, TX 0x1001-0x1006 (Common through Cosmic)
-- Each template must implement initialization opcode 0x0
-- Templates receive creation data via cellpack inputs
+### Required Template Contract
+The factory requires one wand template contract deployed at:
+- Block 6, TX 0x1001 (Single wand template for all types)
+- Template must implement initialization opcode 0x0
+- Template must implement opcode 1000 for SVG generation
+- Template receives and stores creation data as imprinted state via cellpack inputs
+- Individual wand tokens generate SVG by interpolating their own imprinted state values
+- Rarity and type determined by the wand template based on imprinted XOR results
 
 ### Position Token Integration
 - **Alkamist Position**: Block 2, TX 25720
@@ -251,28 +293,33 @@ The factory requires six wand template contracts deployed at:
 - **Trace analysis**: Comprehensive execution trace capture
 
 ### Test Coverage
-- Contract deployment and initialization
+- Factory and wand template deployment and initialization
 - Position token conversion flows
 - Gambling mechanics with various stakes
-- SVG generation and metadata
+- Individual wand NFT functionality testing
+- SVG generation by individual wands (not factory)
+- Wand rarity, type, and power level methods
 - Statistical analysis and win rate verification
 - Edge cases (zero dust, maximum dust, invalid opcodes)
 
 ## 🚀 Deployment Guide
 
 ### 1. Template Deployment
-Deploy six wand template contracts to block 6, TX 0x1001-0x1006
+Deploy single wand template contract to block 6, TX 0x1001
 
 ### 2. Factory Deployment
 Deploy `OrbitalWandFactory` contract
 
 ### 3. Initialization
-Call initialize opcode (0x0) on factory
+- Call initialize opcode (0x0) on factory
+- Call initialize opcode (0x0) on wand template
 
 ### 4. Verification
 - Test wand creation with various token amounts
 - Verify child registration works correctly
-- Confirm SVG generation functions properly
+- Test individual wand NFT functionality
+- Confirm SVG generation by individual wands
+- Verify rarity/type methods on wand templates
 
 ## 📊 Monitoring & Analytics
 
@@ -311,7 +358,8 @@ Call initialize opcode (0x0) on factory
 2. **Cellpack Usage**: Uses boiler's cellpack pattern to call template contracts
 3. **Child Registration**: MUST register all created wands for security
 4. **Token Burning**: Tokens are consumed regardless of outcome (not returned)
-5. **Template Dependencies**: Requires six template contracts to be deployed first
+5. **Template Dependencies**: Requires single wand template contract to be deployed first
+6. **SVG Architecture**: Factory does NOT generate SVG - individual wand tokens have state imprinted during initialization, then proxy back to factory for main template and interpolate their own values (similar to panda contract pattern)
 
 ### Security Considerations
 1. **Boiler Inheritance**: Security patterns are inherited from boiler vault factory
@@ -325,9 +373,10 @@ Call initialize opcode (0x0) on factory
 3. **Real Bytecode**: Build system generates actual WASM, no placeholders
 
 ### Build System
-1. **WASM Generation**: `build.rs` compiles to real bytecode
-2. **Include Bytes**: Test helpers use `include_bytes!` for generated WASM
-3. **Template Coordination**: Factory and templates must be built together
+1. **WASM Generation**: `build.rs` compiles both contracts to real bytecode
+2. **Workspace Structure**: Separate contracts for factory and wand template
+3. **Include Bytes**: Test helpers use `include_bytes!` for generated WASM
+4. **Contract Coordination**: Factory and template must be built and deployed together
 
 ---
 

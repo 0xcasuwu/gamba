@@ -1,9 +1,6 @@
 pub mod orbital_wand;
 pub use orbital_wand::OrbitalWandFactory;
 
-pub mod wand_template;
-pub use wand_template::WandTemplate;
-
 pub mod probability;
 pub use probability::ProbabilityCalculator;
 
