@@ -1,20 +1,12 @@
-pub mod precompiled;
-
 pub mod orbital_wand;
 pub use orbital_wand::OrbitalWandFactory;
-
-pub mod wand_template;
-pub use wand_template::WandTemplate;
 
 pub mod probability;
 pub use probability::ProbabilityCalculator;
 
 pub mod wand_svg;
 
-#[cfg(test)]
 pub mod tests {
     pub mod std;
     pub mod orbital_wand_integration_test;
-    pub mod test_basic_forge_clean;
-    pub mod mod;
 }

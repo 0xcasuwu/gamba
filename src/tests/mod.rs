@@ -4,6 +4,8 @@ pub mod orbital_integration_test;
 pub mod debug_minimal_test;
 pub mod test_basic_forge_clean;
 
+// Comprehensive integration tests
+pub mod orbital_wand_integration_test;
 
 // Note: Advanced tests commented out due to API changes
 // #[cfg(test)]
