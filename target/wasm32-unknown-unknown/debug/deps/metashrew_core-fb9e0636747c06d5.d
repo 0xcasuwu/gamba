@@ -1,0 +1,11 @@
+/home/e/Documents/gamba/target/wasm32-unknown-unknown/debug/deps/metashrew_core-fb9e0636747c06d5.wasm: /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/lib.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/imports.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/index_pointer.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/macros.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/stdio.rs
+
+/home/e/Documents/gamba/target/wasm32-unknown-unknown/debug/deps/libmetashrew_core-fb9e0636747c06d5.rlib: /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/lib.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/imports.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/index_pointer.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/macros.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/stdio.rs
+
+/home/e/Documents/gamba/target/wasm32-unknown-unknown/debug/deps/metashrew_core-fb9e0636747c06d5.d: /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/lib.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/imports.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/index_pointer.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/macros.rs /home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/stdio.rs
+
+/home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/lib.rs:
+/home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/imports.rs:
+/home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/index_pointer.rs:
+/home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/macros.rs:
+/home/e/.cargo/git/checkouts/metashrew-2408eea74bb83c90/ba3f017/crates/metashrew-core/src/stdio.rs:

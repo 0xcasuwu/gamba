@@ -1,0 +1,11 @@
+/home/e/Documents/gamba/target/wasm32-unknown-unknown/debug/deps/libweb_sys-8e9c638aff5f3b9f.rmeta: /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/lib.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/mod.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_EventTarget.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_Response.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_Window.rs
+
+/home/e/Documents/gamba/target/wasm32-unknown-unknown/debug/deps/libweb_sys-8e9c638aff5f3b9f.rlib: /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/lib.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/mod.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_EventTarget.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_Response.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_Window.rs
+
+/home/e/Documents/gamba/target/wasm32-unknown-unknown/debug/deps/web_sys-8e9c638aff5f3b9f.d: /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/lib.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/mod.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_EventTarget.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_Response.rs /home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_Window.rs
+
+/home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/lib.rs:
+/home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/mod.rs:
+/home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_EventTarget.rs:
+/home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_Response.rs:
+/home/e/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/web-sys-0.3.77/src/features/gen_Window.rs:
