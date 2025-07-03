@@ -5,7 +5,7 @@ use hex;
 use std::env;
 use std::fs;
 use std::io::prelude::*;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 fn compress(binary: Vec<u8>) -> Result<Vec<u8>> {
@@ -72,8 +72,8 @@ fn main() {
     fs::create_dir_all(&write_dir.join("tests").join("std")).unwrap();
     
     // Use CARGO_MANIFEST_DIR for reliable path resolution
-    let crates_dir = if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        Path::new(&manifest_dir)
+    let crates_dir: PathBuf = if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+        PathBuf::from(manifest_dir)
     } else {
         out_dir
             .parent()
@@ -82,6 +82,7 @@ fn main() {
             .unwrap()
             .parent()
             .unwrap()
+            .to_path_buf()
     };
     
     eprintln!("Base crates directory: {:?}", crates_dir);

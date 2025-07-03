@@ -31,8 +31,8 @@ dependencies = [
 
 [[package]]
 name = "alkanes"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "0.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?rev=97c8b715#97c8b715b49cb6589c01f03d922fa75144332983"
 dependencies = [
  "alkanes-support",
  "anyhow",
@@ -46,13 +46,13 @@ dependencies = [
  "metashrew-support",
  "num",
  "once_cell",
- "ordinals 0.5.2",
+ "ordinals 0.2.3",
  "protobuf 3.7.2",
  "protobuf-codegen 3.7.2",
  "protoc-bin-vendored",
  "protoc-rust",
  "protorune",
- "protorune-support",
+ "protorune-support 0.2.3",
  "ruint",
  "serde",
  "serde_json",
@@ -65,8 +65,8 @@ dependencies = [
 
 [[package]]
 name = "alkanes-macros"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "0.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?rev=97c8b715#97c8b715b49cb6589c01f03d922fa75144332983"
 dependencies = [
  "ciborium",
  "proc-macro2",
@@ -77,8 +77,8 @@ dependencies = [
 
 [[package]]
 name = "alkanes-runtime"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "0.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?rev=97c8b715#97c8b715b49cb6589c01f03d922fa75144332983"
 dependencies = [
  "alkanes-macros",
  "alkanes-support",
@@ -91,8 +91,8 @@ dependencies = [
 
 [[package]]
 name = "alkanes-support"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "0.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?rev=97c8b715#97c8b715b49cb6589c01f03d922fa75144332983"
 dependencies = [
  "anyhow",
  "bitcoin 0.32.6",
@@ -103,7 +103,7 @@ dependencies = [
  "protobuf-codegen 3.7.2",
  "protoc-bin-vendored",
  "protoc-rust",
- "protorune-support",
+ "protorune-support 0.2.3",
  "serde",
 ]
 
@@ -797,10 +797,11 @@ dependencies = [
  "hex_lit",
  "metashrew-core",
  "metashrew-support",
+ "once_cell",
  "ordinals 0.5.2",
  "protobuf 3.7.2",
  "protorune",
- "protorune-support",
+ "protorune-support 0.5.2",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]
@@ -1198,6 +1199,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 
 [[package]]
+name = "orbital-wand-factory"
+version = "0.1.0"
+dependencies = [
+ "alkanes",
+ "alkanes-runtime",
+ "alkanes-support",
+ "anyhow",
+ "bitcoin 0.32.6",
+ "hex_lit",
+ "metashrew-core",
+ "metashrew-support",
+ "once_cell",
+ "ordinals 0.5.2",
+ "protorune",
+ "protorune-support 0.5.2",
+ "secp256k1 0.29.1",
+ "serde",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "ordinals"
 version = "0.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1205,6 +1228,18 @@ checksum = "f69dc8f090e996b63e1f96972f0d619f497c9545464c7bddf65e42d38576b3f3"
 dependencies = [
  "bitcoin 0.30.2",
  "derive_more 0.99.20",
+ "serde",
+ "serde_with",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ordinals"
+version = "0.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?rev=97c8b715#97c8b715b49cb6589c01f03d922fa75144332983"
+dependencies = [
+ "bitcoin 0.32.6",
+ "derive_more 1.0.0",
  "serde",
  "serde_with",
  "thiserror 1.0.69",
@@ -1474,8 +1509,8 @@ dependencies = [
 
 [[package]]
 name = "protorune"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "0.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?rev=97c8b715#97c8b715b49cb6589c01f03d922fa75144332983"
 dependencies = [
  "anyhow",
  "bitcoin 0.32.6",
@@ -1484,14 +1519,32 @@ dependencies = [
  "metashrew-core",
  "metashrew-support",
  "once_cell",
- "ordinals 0.5.2",
+ "ordinals 0.2.3",
  "protobuf 3.7.2",
- "protorune-support",
+ "protorune-support 0.2.3",
  "ruint",
  "serde",
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-test",
+]
+
+[[package]]
+name = "protorune-support"
+version = "0.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?rev=97c8b715#97c8b715b49cb6589c01f03d922fa75144332983"
+dependencies = [
+ "anyhow",
+ "bech32 0.11.0",
+ "bitcoin 0.32.6",
+ "hex",
+ "metashrew-support",
+ "ordinals 0.2.3",
+ "protobuf 3.7.2",
+ "protobuf-codegen 3.7.2",
+ "protoc-bin-vendored",
+ "protoc-rust",
+ "serde",
 ]
 
 [[package]]
@@ -2179,6 +2232,28 @@ dependencies = [
  "bitcoin 0.32.6",
  "hex",
  "metashrew-support",
+]
+
+[[package]]
+name = "wand-template"
+version = "0.1.0"
+dependencies = [
+ "alkanes",
+ "alkanes-runtime",
+ "alkanes-support",
+ "anyhow",
+ "bitcoin 0.32.6",
+ "hex_lit",
+ "metashrew-core",
+ "metashrew-support",
+ "once_cell",
+ "ordinals 0.5.2",
+ "protorune",
+ "protorune-support 0.5.2",
+ "secp256k1 0.29.1",
+ "serde",
+ "serde_json",
+ "wasm-bindgen-test",
 ]
 
 [[package]]
