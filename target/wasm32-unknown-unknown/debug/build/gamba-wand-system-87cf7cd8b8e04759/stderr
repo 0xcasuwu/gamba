@@ -16,7 +16,7 @@ warning: constant `DUST_TOKEN_ID` is never used
    |       ^^^^^^^^^^^^^
 
 warning: `wand-factory` (lib) generated 2 warnings
-    Finished `release` profile [optimized] target(s) in 0.12s
+    Finished `release` profile [optimized] target(s) in 0.42s
 Generated build file: "/home/e/Documents/gamba/src/tests/std/wand_factory_build.rs"
 Successfully built alkane: wand-factory -> wand_factory
 Building alkane: wand-token
@@ -63,7 +63,7 @@ warning: methods `set_name_and_symbol` and `set_string_field` are never used
     |        ^^^^^^^^^^^^^^^^
 
 warning: `wand-token` (lib) generated 5 warnings (run `cargo fix --lib -p wand-token` to apply 1 suggestion)
-    Finished `release` profile [optimized] target(s) in 0.85s
+    Finished `release` profile [optimized] target(s) in 0.15s
 Generated build file: "/home/e/Documents/gamba/src/tests/std/wand_token_build.rs"
 Successfully built alkane: wand-token -> wand_token
 Built modules: ["wand_factory", "wand_token"]

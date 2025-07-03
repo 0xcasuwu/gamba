@@ -192,6 +192,8 @@ fn create_clean_gamba_environment() -> Result<(AlkaneId, AlkaneId, OutPoint)> {
     println!("\n🏭 PHASE 3: Initializing Orbital Forge Factory");
     let dust_token_id = AlkaneId { block: 2, tx: 1 }; // DUST token for enhancement
     
+    let wand_token_template_id = AlkaneId { block: 4, tx: 0x385 }; // Template for creating orbital tokens
+    
     let init_factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: Version::ONE,
         lock_time: bitcoin::absolute::LockTime::ZERO,
@@ -222,8 +224,9 @@ fn create_clean_gamba_environment() -> Result<(AlkaneId, AlkaneId, OutPoint)> {
                                 message: into_cellpack(vec![
                                     4u128, 0x37a, 0u128,    // Initialize wand_factory instance at 4,0x37a
                                     dust_token_id.block, dust_token_id.tx, // DUST token for enhancement
-                                    1000u128,               // forge_cost (DUST required per forge)
-                                    free_mint_contract_id.block, free_mint_contract_id.tx, // free-mint contract
+                                    144u128,                // success_threshold (XOR threshold for success)
+                                    5u128,                  // dust_bonus_rate (5 per 1000 DUST)
+                                    wand_token_template_id.block, wand_token_template_id.tx, // orbital_token_template_id
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
