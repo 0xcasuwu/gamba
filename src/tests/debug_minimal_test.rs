@@ -59,6 +59,23 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
+    
+    // TRACE: Template block deployment
+    println!("🔍 TRACE: Template block deployment at block 0");
+    for (i, tx) in template_block.txdata.iter().enumerate() {
+        println!("   • TX {} traces:", i);
+        for vout in 0..5 {
+            let trace_data = &view::trace(&OutPoint {
+                txid: tx.compute_txid(),
+                vout,
+            })?;
+            let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+            let trace_guard = trace_result.0.lock().unwrap();
+            if !trace_guard.is_empty() {
+                println!("     - vout {}: {:?}", vout, *trace_guard);
+            }
+        }
+    }
     println!("✅ Templates deployed successfully");
     
     // STEP 2: Deploy DUST token 
@@ -267,6 +284,22 @@ fn test_minimal_debug_forge_call() -> Result<()> {
     );
     index_block(&template_block, 0)?;
     
+    // TRACE: Template block deployment
+    println!("🔍 TRACE: Template block deployment at block 0");
+    for (i, tx) in template_block.txdata.iter().enumerate() {
+        println!("   • TX {} traces:", i);
+        for vout in 0..5 {
+            let trace_data = &view::trace(&OutPoint {
+                txid: tx.compute_txid(),
+                vout,
+            })?;
+            let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+            let trace_guard = trace_result.0.lock().unwrap();
+            if !trace_guard.is_empty() {
+                println!("     - vout {}: {:?}", vout, *trace_guard);
+            }
+        }
+    }
     println!("✅ Templates deployed: 3,n → instances at 4,n");
     
     let dust_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {

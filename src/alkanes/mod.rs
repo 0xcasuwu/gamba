@@ -1,7 +1,2 @@
-pub mod wand_factory {
-    pub use wand_factory::WandFactory;
-}
-
-pub mod wand_token {
-    pub use wand_token::WandToken;
-}
+// Alkanes module - currently empty as workspace crates are separate
+// This module exists for future alkanes-specific functionality
