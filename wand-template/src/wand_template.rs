@@ -8,6 +8,10 @@ use alkanes_support::{
   response::CallResponse
 };
 
+use metashrew_support::index_pointer::KeyValuePointer;
+use metashrew_support::compat::to_arraybuffer_layout;
+use bitcoin::hashes::Hash;
+
 use anyhow::{anyhow, Result};
 use std::sync::Arc;
 
@@ -190,8 +194,8 @@ impl WandTemplate {
     let wand_data = WandData {
       wand_id: wand_state.wand_id,
       position_token_id: AlkaneId { block: 2, tx: 35275 }, // Default dust position for display
-      txid: bitcoin::Txid::from_byte_array([wand_state.uniqueness; 32]), // Simplified for display
-      merkle_root: bitcoin::blockdata::block::TxMerkleNode::from_byte_array([wand_state.base_xor_result; 32]), // Simplified
+      txid: bitcoin::Txid::from_raw_hash(bitcoin::hashes::sha256d::Hash::from_byte_array([wand_state.uniqueness; 32])), // Simplified for display
+      merkle_root: bitcoin::blockdata::block::TxMerkleNode::from_raw_hash(bitcoin::hashes::sha256d::Hash::from_byte_array([wand_state.base_xor_result; 32])), // Simplified
       base_xor_result: wand_state.base_xor_result,
       dust_bonus: wand_state.dust_bonus,
       final_xor_result: wand_state.final_xor_result,
@@ -376,12 +380,13 @@ impl WandTemplate {
 
   // Storage functions
   fn wand_state_pointer(&self) -> StoragePointer {
-    StoragePointer::from_keyword("/wand_state")
+    StoragePointer::keyword(&StoragePointer::default(), "/wand_state")
   }
 
   fn store_wand_state(&self, state: &WandState) -> Result<()> {
     let bytes = state.to_bytes();
-    self.wand_state_pointer().set(Arc::new(bytes));
+    let mut pointer = self.wand_state_pointer();
+    pointer.set(Arc::new(bytes));
     Ok(())
   }
 

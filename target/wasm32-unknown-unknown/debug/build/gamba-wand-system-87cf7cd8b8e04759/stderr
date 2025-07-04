@@ -1,6 +1,8 @@
-Looking for alkanes directory at: "/home/e/Documents/gamba/alkanes"
+Base crates directory: "/home/e/Documents/gamba"
+Building alkanes contracts from: "/home/e/Documents/gamba/alkanes"
 Found alkane projects: ["wand-factory", "wand-token"]
 Building alkane: wand-factory
+warning: /home/e/Documents/gamba/Cargo.toml: unused manifest key: workspace.dev-dependencies
 warning: constant `ORBITAL_TOKEN_TEMPLATE_ID` is never used
   --> alkanes/wand-factory/src/lib.rs:18:7
    |
@@ -16,10 +18,11 @@ warning: constant `DUST_TOKEN_ID` is never used
    |       ^^^^^^^^^^^^^
 
 warning: `wand-factory` (lib) generated 2 warnings
-    Finished `release` profile [optimized] target(s) in 0.42s
+    Finished `release` profile [optimized] target(s) in 0.24s
 Generated build file: "/home/e/Documents/gamba/src/tests/std/wand_factory_build.rs"
 Successfully built alkane: wand-factory -> wand_factory
 Building alkane: wand-token
+warning: /home/e/Documents/gamba/Cargo.toml: unused manifest key: workspace.dev-dependencies
 warning: unused import: `anyhow`
   --> alkanes/wand-token/src/lib.rs:15:14
    |
@@ -63,8 +66,65 @@ warning: methods `set_name_and_symbol` and `set_string_field` are never used
     |        ^^^^^^^^^^^^^^^^
 
 warning: `wand-token` (lib) generated 5 warnings (run `cargo fix --lib -p wand-token` to apply 1 suggestion)
-    Finished `release` profile [optimized] target(s) in 0.15s
+    Finished `release` profile [optimized] target(s) in 0.14s
 Generated build file: "/home/e/Documents/gamba/src/tests/std/wand_token_build.rs"
 Successfully built alkane: wand-token -> wand_token
-Built modules: ["wand_factory", "wand_token"]
-Generated mod.rs at: "/home/e/Documents/gamba/src/tests/std/mod.rs"
+Built alkanes modules: ["wand_factory", "wand_token"]
+Generated alkanes mod.rs at: "/home/e/Documents/gamba/src/tests/std/mod.rs"
+Building factory contract from: "/home/e/Documents/gamba/factory"
+warning: /home/e/Documents/gamba/Cargo.toml: unused manifest key: workspace.dev-dependencies
+warning: unused import: `crate::probability::ProbabilityCalculator`
+  --> factory/src/orbital_wand.rs:24:5
+   |
+24 | use crate::probability::ProbabilityCalculator;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `anyhow::Result`
+ --> factory/src/probability.rs:1:5
+  |
+1 | use anyhow::Result;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused variable: `position_token_value`
+   --> factory/src/probability.rs:126:37
+    |
+126 |     pub fn get_risk_recommendations(position_token_value: u128) -> Vec<(String, u128, f64)> {
+    |                                     ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_position_token_value`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `position_token_value`
+   --> factory/src/probability.rs:154:57
+    |
+154 |     pub fn calculate_kelly_criterion(dust_amount: u128, position_token_value: u128) -> f64 {
+    |                                                         ^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_position_token_value`
+
+warning: methods `get_wand_rarity`, `get_wand_type_name`, `record_win`, and `record_loss` are never used
+   --> factory/src/orbital_wand.rs:682:6
+    |
+233 | impl OrbitalWandFactory {
+    | ----------------------- methods in this implementation
+...
+682 |   fn get_wand_rarity(&self, final_xor_result: u8) -> String {
+    |      ^^^^^^^^^^^^^^^
+...
+694 |   fn get_wand_type_name(&self, final_xor_result: u8) -> String {
+    |      ^^^^^^^^^^^^^^^^^^
+...
+955 |   fn record_win(&self, total_stake: u128) -> Result<()> {
+    |      ^^^^^^^^^^
+...
+963 |   fn record_loss(&self, total_stake: u128) -> Result<()> {
+    |      ^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `orbital-wand-factory` (lib) generated 5 warnings (run `cargo fix --lib -p orbital-wand-factory` to apply 2 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.07s
+Built factory contract: orbital_wand_factory
+Building wand-template contract from: "/home/e/Documents/gamba/wand-template"
+warning: /home/e/Documents/gamba/Cargo.toml: unused manifest key: workspace.dev-dependencies
+    Finished `release` profile [optimized] target(s) in 0.10s
+Built wand-template contract: wand_template

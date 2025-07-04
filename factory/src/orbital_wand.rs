@@ -1,4 +1,6 @@
 use metashrew_support::utils::consensus_decode;
+use metashrew_support::index_pointer::KeyValuePointer;
+use metashrew_support::compat::to_arraybuffer_layout;
 
 use alkanes_runtime::{
   declare_alkane, message::MessageDispatch, storage::StoragePointer,
@@ -396,7 +398,7 @@ impl OrbitalWandFactory {
       return Ok(response);
     }
 
-    let latest_metadata = self.get_wand_metadata(wand_count - 1)?;
+    let latest_metadata = self.get_wand_metadata_internal(wand_count - 1)?;
     let wand_data = WandData {
       wand_id: latest_metadata.wand_id,
       position_token_id: latest_metadata.stake_token_id,
@@ -431,7 +433,7 @@ impl OrbitalWandFactory {
       return Ok(response);
     }
 
-    let latest_metadata = self.get_wand_metadata(wand_count - 1)?;
+    let latest_metadata = self.get_wand_metadata_internal(wand_count - 1)?;
     let attributes = self.generate_wand_attributes(&latest_metadata)?;
     response.data = attributes.into_bytes();
 
@@ -453,7 +455,7 @@ impl OrbitalWandFactory {
     let mut wand_list = Vec::new();
 
     for i in 0..count {
-      let metadata = self.get_wand_metadata(i)?;
+      let metadata = self.get_wand_metadata_internal(i)?;
       wand_list.push(metadata.to_bytes());
     }
 
@@ -474,7 +476,7 @@ impl OrbitalWandFactory {
     let mut wand_list = Vec::new();
 
     for i in 0..count {
-      let metadata = self.get_wand_metadata(i)?;
+      let metadata = self.get_wand_metadata_internal(i)?;
       let stake_type_str = match metadata.stake_token_type {
         StakeTokenType::Dust => "dust",
         StakeTokenType::Alkamist => "alkamist",
@@ -508,7 +510,7 @@ impl OrbitalWandFactory {
       return Ok(response);
     }
 
-    let latest_metadata = self.get_wand_metadata(wand_count - 1)?;
+    let latest_metadata = self.get_wand_metadata_internal(wand_count - 1)?;
     response.data = latest_metadata.to_bytes();
 
     Ok(response)
@@ -555,7 +557,7 @@ impl OrbitalWandFactory {
       return Ok(response);
     }
 
-    let latest_metadata = self.get_wand_metadata(wand_count - 1)?;
+    let latest_metadata = self.get_wand_metadata_internal(wand_count - 1)?;
     response.data = latest_metadata.to_bytes();
 
     Ok(response)
@@ -873,13 +875,13 @@ impl OrbitalWandFactory {
 
   fn store_wand_metadata(&self, metadata: &WandMetadata) -> Result<()> {
     let bytes = metadata.to_bytes();
-    let wand_pointer = StoragePointer::from_keyword("/wands/")
+    let mut wand_pointer = StoragePointer::from_keyword("/wands/")
       .select(&metadata.wand_id.to_le_bytes().to_vec());
     wand_pointer.set(Arc::new(bytes));
     Ok(())
   }
 
-  fn get_wand_metadata(&self, wand_id: u128) -> Result<WandMetadata> {
+  fn get_wand_metadata_internal(&self, wand_id: u128) -> Result<WandMetadata> {
     let wand_pointer = StoragePointer::from_keyword("/wands/")
       .select(&wand_id.to_le_bytes().to_vec());
     let bytes = wand_pointer.get();
@@ -1009,7 +1011,7 @@ impl OrbitalWandFactory {
 
   fn block_height(&self) -> Result<u32> {
     // Production-ready implementation: Get the actual current block height
-    Ok(self.height())
+    Ok(self.height().try_into().unwrap())
   }
 
   fn has_tx_hash(&self, txid: &Txid) -> bool {
