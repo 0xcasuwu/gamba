@@ -18,7 +18,7 @@ warning: constant `DUST_TOKEN_ID` is never used
    |       ^^^^^^^^^^^^^
 
 warning: `wand-factory` (lib) generated 2 warnings
-    Finished `release` profile [optimized] target(s) in 0.54s
+    Finished `release` profile [optimized] target(s) in 0.22s
 Generated build file: "/home/e/Documents/gamba/src/tests/std/wand_factory_build.rs"
 Successfully built alkane: wand-factory -> wand_factory
 Building alkane: wand-token
@@ -66,7 +66,7 @@ warning: methods `set_name_and_symbol` and `set_string_field` are never used
     |        ^^^^^^^^^^^^^^^^
 
 warning: `wand-token` (lib) generated 5 warnings (run `cargo fix --lib -p wand-token` to apply 1 suggestion)
-    Finished `release` profile [optimized] target(s) in 0.20s
+    Finished `release` profile [optimized] target(s) in 0.17s
 Generated build file: "/home/e/Documents/gamba/src/tests/std/wand_token_build.rs"
 Successfully built alkane: wand-token -> wand_token
 Built alkanes modules: ["wand_factory", "wand_token"]
@@ -122,9 +122,9 @@ warning: methods `get_wand_rarity`, `get_wand_type_name`, `record_win`, and `rec
     = note: `#[warn(dead_code)]` on by default
 
 warning: `orbital-wand-factory` (lib) generated 5 warnings (run `cargo fix --lib -p orbital-wand-factory` to apply 2 suggestions)
-    Finished `release` profile [optimized] target(s) in 0.08s
+    Finished `release` profile [optimized] target(s) in 0.16s
 Built factory contract: orbital_wand_factory
 Building wand-template contract from: "/home/e/Documents/gamba/wand-template"
 warning: /home/e/Documents/gamba/Cargo.toml: unused manifest key: workspace.dev-dependencies
-    Finished `release` profile [optimized] target(s) in 0.12s
+    Finished `release` profile [optimized] target(s) in 0.34s
 Built wand-template contract: wand_template
