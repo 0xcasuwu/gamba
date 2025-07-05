@@ -1,0 +1,144 @@
+# .ai-ignore - Files and directories that AI should never attempt to read
+# Uses gitignore-style patterns
+
+# Project-specific directories to ignore
+src/tests/std/
+src/precompiled/
+
+# Build artifacts and compiled files
+target/
+release/
+debug/
+alkanes/release/
+alkanes/wasm32-unknown-unknown/
+alkanes/gamba/
+*.wasm
+*.so
+*.dll
+*.exe
+*.dylib
+*.rlib
+*.rmeta
+
+# Rust build cache and metadata
+.rustc_info.json
+*.d
+**/build/*/
+**/incremental/
+Cargo.lock
+
+# Generated and temporary files
+.git/
+.gitignore
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
+*.log
+*.cache
+*~
+.#*
+#*#
+
+# Node.js (if any JS tooling is used)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Binary and media files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.ico
+*.svg
+*.webp
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.mp3
+*.wav
+*.ogg
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+
+# Archives and compressed files
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.gz
+*.bz2
+*.xz
+*.7z
+*.rar
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.mdb
+
+# Large data files
+*.csv
+*.json
+*.xml
+*.yaml
+*.yml
+# Exclude only large JSON files (>1MB typically)
+**/data/**/*.json
+**/datasets/**/*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Test coverage and profiling
+*.profraw
+*.gcda
+*.gcno
+coverage/
+lcov.info
+
+# Documentation build outputs
+book/
+docs/_build/
+site/
+
+# Rust-specific patterns for generated code
+**/*_generated.rs
+**/*_bindings.rs
+**/bindgen_*
