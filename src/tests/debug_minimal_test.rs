@@ -23,8 +23,8 @@ use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
 use crate::precompiled::factory_build;
 use crate::precompiled::coupon_template_build;
-use crate::precompiled::free_mint_build;
-use crate::precompiled::auth_token_build;
+use alkanes::precompiled::free_mint_build;
+
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -50,7 +50,7 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
             free_mint_build::get_bytes(),
             coupon_template_build::get_bytes(),
             factory_build::get_bytes(),
-            auth_token_build::get_bytes(),
+            
         ].into(),
         [
             vec![3u128, 797u128, 101u128],     // free_mint template → deploys at block 4
@@ -274,7 +274,7 @@ fn test_minimal_debug_forge_call() -> Result<()> {
             free_mint_build::get_bytes(),
             coupon_template_build::get_bytes(),
             factory_build::get_bytes(),
-            auth_token_build::get_bytes(),     // auth_token_build exists in precompiled
+                 // auth_token_build exists in precompiled
         ].into(),
         [
             vec![3u128, 797u128, 101u128],     // free_mint template → deploys instance at block 4, tx 797
@@ -496,7 +496,7 @@ fn test_minimal_debug_coupon_creation() -> Result<()> {
             free_mint_build::get_bytes(),
             coupon_template_build::get_bytes(),
             factory_build::get_bytes(),
-            auth_token_build::get_bytes(),
+            
         ].into(),
         [
             vec![3u128, 797u128, 101u128],     // free_mint template
@@ -746,7 +746,7 @@ fn test_minimal_debug_dust_gambling_mechanics() -> Result<()> {
             free_mint_build::get_bytes(),
             coupon_template_build::get_bytes(),
             factory_build::get_bytes(),
-            auth_token_build::get_bytes(),
+            
         ].into(),
         [
             vec![3u128, 797u128, 101u128],
@@ -1025,7 +1025,7 @@ fn test_linear_probability_demonstration() -> Result<()> {
             free_mint_build::get_bytes(),
             coupon_template_build::get_bytes(),
             factory_build::get_bytes(),
-            auth_token_build::get_bytes(),
+            
         ].into(),
         [
             vec![3u128, 797u128, 101u128],
