@@ -1,1 +1,6 @@
 target/
+alkanes/release/
+alkanes/wasm32-unknown-unknown/
+reference/
+test_output.txt
+alkamon/
