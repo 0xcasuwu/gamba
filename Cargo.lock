@@ -30,6 +30,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "alkane-coupon-template"
+version = "0.1.0"
+dependencies = [
+ "alkanes-runtime",
+ "alkanes-support",
+ "anyhow",
+ "metashrew-support",
+]
+
+[[package]]
+name = "alkane-factory"
+version = "0.1.0"
+dependencies = [
+ "alkanes-runtime",
+ "alkanes-support",
+ "anyhow",
+ "bitcoin 0.32.6",
+ "hex",
+ "metashrew-support",
+]
+
+[[package]]
 name = "alkanes"
 version = "0.5.2"
 source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
@@ -555,6 +577,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "coupon-template"
+version = "0.1.0"
+dependencies = [
+ "alkanes",
+ "alkanes-runtime",
+ "alkanes-support",
+ "anyhow",
+ "bitcoin 0.32.6",
+ "hex_lit",
+ "metashrew-core",
+ "metashrew-support",
+ "once_cell",
+ "ordinals 0.5.2",
+ "protorune",
+ "protorune-support",
+ "secp256k1 0.29.1",
+ "serde",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "crc32fast"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -722,6 +766,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "factory"
+version = "0.1.0"
+dependencies = [
+ "alkanes",
+ "alkanes-runtime",
+ "alkanes-support",
+ "anyhow",
+ "bitcoin 0.32.6",
+ "hex_lit",
+ "metashrew-core",
+ "metashrew-support",
+ "once_cell",
+ "ordinals 0.5.2",
+ "protorune",
+ "protorune-support",
+ "secp256k1 0.29.1",
+ "serde",
+ "serde_json",
+ "wasm-bindgen-test",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -784,7 +850,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
-name = "gamba-wand-system"
+name = "gamba"
 version = "0.1.0"
 dependencies = [
  "alkanes",
@@ -1197,28 +1263,6 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
-
-[[package]]
-name = "orbital-wand-factory"
-version = "0.1.0"
-dependencies = [
- "alkanes",
- "alkanes-runtime",
- "alkanes-support",
- "anyhow",
- "bitcoin 0.32.6",
- "hex_lit",
- "metashrew-core",
- "metashrew-support",
- "once_cell",
- "ordinals 0.5.2",
- "protorune",
- "protorune-support",
- "secp256k1 0.29.1",
- "serde",
- "serde_json",
- "wasm-bindgen-test",
-]
 
 [[package]]
 name = "ordinals"
@@ -2190,50 +2234,6 @@ checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
 dependencies = [
  "same-file",
  "winapi-util",
-]
-
-[[package]]
-name = "wand-factory"
-version = "0.1.0"
-dependencies = [
- "alkanes-runtime",
- "alkanes-support",
- "anyhow",
- "bitcoin 0.32.6",
- "hex",
- "metashrew-support",
-]
-
-[[package]]
-name = "wand-template"
-version = "0.1.0"
-dependencies = [
- "alkanes",
- "alkanes-runtime",
- "alkanes-support",
- "anyhow",
- "bitcoin 0.32.6",
- "hex_lit",
- "metashrew-core",
- "metashrew-support",
- "once_cell",
- "ordinals 0.5.2",
- "protorune",
- "protorune-support",
- "secp256k1 0.29.1",
- "serde",
- "serde_json",
- "wasm-bindgen-test",
-]
-
-[[package]]
-name = "wand-token"
-version = "0.1.0"
-dependencies = [
- "alkanes-runtime",
- "alkanes-support",
- "anyhow",
- "metashrew-support",
 ]
 
 [[package]]

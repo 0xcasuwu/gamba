@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 pub struct ProbabilityCalculator;
 
 impl ProbabilityCalculator {
@@ -123,7 +121,7 @@ impl ProbabilityCalculator {
     }
     
     /// Get recommended dust amounts for different risk profiles
-    pub fn get_risk_recommendations(position_token_value: u128) -> Vec<(String, u128, f64)> {
+    pub fn get_risk_recommendations(_position_token_value: u128) -> Vec<(String, u128, f64)> {
         vec![
             ("Conservative".to_string(), 1000, Self::calculate_win_probability(1000)),
             ("Moderate".to_string(), 3000, Self::calculate_win_probability(3000)),
@@ -151,7 +149,7 @@ impl ProbabilityCalculator {
     }
     
     /// Calculate Kelly criterion for optimal bet sizing
-    pub fn calculate_kelly_criterion(dust_amount: u128, position_token_value: u128) -> f64 {
+    pub fn calculate_kelly_criterion(dust_amount: u128, _position_token_value: u128) -> f64 {
         let win_probability = Self::calculate_win_probability(dust_amount);
         let loss_probability = 1.0 - win_probability;
         

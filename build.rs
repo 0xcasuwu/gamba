@@ -205,15 +205,15 @@ fn main() {
         eprintln!("Generated alkanes mod.rs at: {:?}", mod_rs_path);
     }
     
-    // Build factory and wand-template contracts (main branch system)
+    // Build factory and coupon-template contracts (main branch system)
     let factory_dir = crates_dir.join("factory");
-    let wand_template_dir = crates_dir.join("wand-template");
+    let coupon_template_dir = crates_dir.join("coupon-template");
     
     if factory_dir.exists() {
         eprintln!("Building factory contract from: {:?}", factory_dir);
         std::env::set_current_dir(&factory_dir).unwrap();
         build_alkane(wasm_str, vec![]).unwrap();
-        let factory_name = "orbital_wand_factory".to_owned();
+        let factory_name = "factory".to_owned();
         let factory_wasm: Vec<u8> = fs::read(
             &Path::new(&wasm_str)
                 .join("wasm32-unknown-unknown")
@@ -233,11 +233,11 @@ fn main() {
         eprintln!("Built factory contract: {}", factory_name);
     }
 
-    if wand_template_dir.exists() {
-        eprintln!("Building wand-template contract from: {:?}", wand_template_dir);
-        std::env::set_current_dir(&wand_template_dir).unwrap();
+    if coupon_template_dir.exists() {
+        eprintln!("Building coupon-template contract from: {:?}", coupon_template_dir);
+        std::env::set_current_dir(&coupon_template_dir).unwrap();
         build_alkane(wasm_str, vec![]).unwrap();
-        let template_name = "wand_template".to_owned();
+        let template_name = "coupon_template".to_owned();
         let template_wasm: Vec<u8> = fs::read(
             &Path::new(&wasm_str)
                 .join("wasm32-unknown-unknown")
@@ -254,6 +254,9 @@ fn main() {
             &template_compressed,
         )
         .unwrap();
-        eprintln!("Built wand-template contract: {}", template_name);
+        eprintln!("Built coupon-template contract: {}", template_name);
     }
+    
+    // Reset to base directory after building
+    std::env::set_current_dir(&crates_dir).unwrap();
 }

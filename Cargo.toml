@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "alkanes/wand-factory", "alkanes/wand-token", "factory", "wand-template"]
+members = [".", "alkanes/factory", "alkanes/coupon-template", "factory", "coupon-template"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -22,7 +22,7 @@ once_cell = "1.19.0"
 wasm-bindgen-test = "0.3.40"
 
 [package]
-name = "gamba-wand-system"
+name = "gamba"
 version = "0.1.0"
 edition = "2021"
 

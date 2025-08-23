@@ -1,8 +1,8 @@
 [package]
-name = "orbital-wand-factory"
+name = "factory"
 version = "0.1.0"
 edition = "2021"
-description = "Orbital Wand Factory - Creates individual wand NFTs using cellpack pattern"
+description = "Factory - Creates individual coupon tokens using cellpack pattern"
 authors = ["Gamba Team"]
 
 [lib]
