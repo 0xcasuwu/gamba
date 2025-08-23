@@ -21,8 +21,8 @@ use protorune::protostone::Protostones;
 use protorune::message::MessageContext;
 use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
-use crate::precompiled::wand_factory_build;
-use crate::precompiled::wand_token_build;
+use crate::precompiled::factory_build;
+use crate::precompiled::coupon_template_build;
 use crate::precompiled::free_mint_build;
 use crate::precompiled::auth_token_build;
 
@@ -47,15 +47,15 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
     println!("\n📦 STEP 1: Template Deployment");
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
-            free_mint_build::get_bytes(),      
-            wand_token_build::get_bytes(),     
-            wand_factory_build::get_bytes(),
-            auth_token_build::get_bytes(),     // ← MISSING AUTH TOKEN BUILD!
+            free_mint_build::get_bytes(),
+            coupon_template_build::get_bytes(),
+            factory_build::get_bytes(),
+            auth_token_build::get_bytes(),
         ].into(),
         [
             vec![3u128, 797u128, 101u128],     // free_mint template → deploys at block 4
-            vec![3u128, 0x601, 10u128],        // wand_token template → deploys at block 4
-            vec![3u128, 0x701, 10u128],        // wand_factory template → deploys at block 4
+            vec![3u128, 0x601, 10u128],        // coupon_token template → deploys at block 4
+            vec![3u128, 0x701, 10u128],        // coupon_factory template → deploys at block 4
             vec![3u128, 0xffee, 0u128, 1u128], // auth_token template → deploys at block 4
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
@@ -137,7 +137,7 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
     // STEP 3: Initialize factory (FIXED: Wait until factory exists at block 4+)
     println!("\n🏭 STEP 3: Factory Initialization");
     let dust_token_id = AlkaneId { block: 2, tx: 797 };
-    let orbital_token_template_id = AlkaneId { block: 4, tx: 0x601 }; // FIXED: instance at block 4
+    let coupon_token_template_id = AlkaneId { block: 4, tx: 0x601 }; // FIXED: instance at block 4
     
     let init_factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: Version::ONE,
@@ -167,11 +167,11 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    4u128, 0x701, 0u128, // Initialize orbital factory
-                                    dust_token_id.block, dust_token_id.tx, 
+                                    4u128, 0x701, 0u128, // Initialize coupon factory
+                                    dust_token_id.block, dust_token_id.tx,
                                     144u128, // Success threshold
                                     5u128, // DUST bonus rate
-                                    orbital_token_template_id.block, orbital_token_template_id.tx,
+                                    coupon_token_template_id.block, coupon_token_template_id.tx,
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -222,7 +222,7 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    factory_id.block, factory_id.tx, 10u128, // GetSuccessfulForges - test if factory is working
+                                    factory_id.block, factory_id.tx, 10u128, // GetSuccessfulCoupons - test if factory is working
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -271,15 +271,15 @@ fn test_minimal_debug_forge_call() -> Result<()> {
     // FIXED: Consistent template deployment following boiler pattern
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
-            free_mint_build::get_bytes(),      
-            wand_token_build::get_bytes(),     
-            wand_factory_build::get_bytes(),
+            free_mint_build::get_bytes(),
+            coupon_template_build::get_bytes(),
+            factory_build::get_bytes(),
             auth_token_build::get_bytes(),     // auth_token_build exists in precompiled
         ].into(),
         [
             vec![3u128, 797u128, 101u128],     // free_mint template → deploys instance at block 4, tx 797
-            vec![3u128, 0x601, 10u128],        // wand_token template → deploys instance at block 4, tx 0x601
-            vec![3u128, 0x701, 10u128],        // wand_factory template → deploys instance at block 4, tx 0x701
+            vec![3u128, 0x601, 10u128],        // coupon_token template → deploys instance at block 4, tx 0x601
+            vec![3u128, 0x701, 10u128],        // coupon_factory template → deploys instance at block 4, tx 0x701
             vec![3u128, 0xffee, 0u128, 1u128], // auth_token template → deploys instance at block 4, tx 0xffee
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
@@ -359,7 +359,7 @@ fn test_minimal_debug_forge_call() -> Result<()> {
     
     // FIXED: Reference the correct deployed instances (not templates)
     let dust_token_id = AlkaneId { block: 2, tx: 797 };        // DUST token deployed in previous transaction
-    let orbital_token_template_id = AlkaneId { block: 4, tx: 0x601 }; // FIXED: Template deployed at 3,0x601 → instance at 4,0x601
+    let coupon_token_template_id = AlkaneId { block: 4, tx: 0x601 }; // FIXED: Template deployed at 3,0x601 → instance at 4,0x601
     
     let init_factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: Version::ONE,
@@ -390,10 +390,10 @@ fn test_minimal_debug_forge_call() -> Result<()> {
                             Protostone {
                                 message: into_cellpack(vec![
                                     4u128, 0x701, 0u128,     // FIXED: Call factory instance at 4,0x701 
-                                    dust_token_id.block, dust_token_id.tx, 
-                                    144u128, 
-                                    5u128, 
-                                    orbital_token_template_id.block, orbital_token_template_id.tx, // Template reference (4,0x601)
+                                    dust_token_id.block, dust_token_id.tx,
+                                    144u128,
+                                    5u128,
+                                    coupon_token_template_id.block, coupon_token_template_id.tx, // Template reference (4,0x601)
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -445,7 +445,7 @@ fn test_minimal_debug_forge_call() -> Result<()> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    factory_id.block, factory_id.tx, 1u128, // ForgeOrbital opcode (CORRECT!)
+                                    factory_id.block, factory_id.tx, 1u128, // ForgeCoupon opcode (CORRECT!)
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -483,9 +483,9 @@ fn test_minimal_debug_forge_call() -> Result<()> {
 }
 
 #[wasm_bindgen_test]
-fn test_minimal_debug_wand_creation() -> Result<()> {
-    println!("\n🔍 MINIMAL DEBUG: Complete Wand Creation Flow");
-    println!("==============================================");
+fn test_minimal_debug_coupon_creation() -> Result<()> {
+    println!("\n🔍 MINIMAL DEBUG: Complete Coupon Creation Flow");
+    println!("===============================================");
     
     clear();
     
@@ -494,14 +494,14 @@ fn test_minimal_debug_wand_creation() -> Result<()> {
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
             free_mint_build::get_bytes(),
-            wand_token_build::get_bytes(),
-            wand_factory_build::get_bytes(),
+            coupon_template_build::get_bytes(),
+            factory_build::get_bytes(),
             auth_token_build::get_bytes(),
         ].into(),
         [
             vec![3u128, 797u128, 101u128],     // free_mint template
-            vec![3u128, 0x601, 10u128],        // wand_token template
-            vec![3u128, 0x701, 10u128],        // wand_factory template
+            vec![3u128, 0x601, 10u128],        // coupon_token template
+            vec![3u128, 0x701, 10u128],        // coupon_factory template
             vec![3u128, 0xffee, 0u128, 1u128], // auth_token template
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
@@ -597,7 +597,7 @@ fn test_minimal_debug_wand_creation() -> Result<()> {
     // STEP 3: Factory initialization
     println!("\n🏭 STEP 3: Factory Initialization");
     let dust_token_id = AlkaneId { block: 2, tx: 797 };
-    let orbital_token_template_id = AlkaneId { block: 4, tx: 0x601 };
+    let coupon_token_template_id = AlkaneId { block: 4, tx: 0x601 };
     
     let init_factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: Version::ONE,
@@ -631,7 +631,7 @@ fn test_minimal_debug_wand_creation() -> Result<()> {
                                     dust_token_id.block, dust_token_id.tx,
                                     144u128, // Success threshold
                                     5u128,   // DUST bonus rate
-                                    orbital_token_template_id.block, orbital_token_template_id.tx,
+                                    coupon_token_template_id.block, coupon_token_template_id.tx,
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -650,8 +650,8 @@ fn test_minimal_debug_wand_creation() -> Result<()> {
     index_block(&init_factory_block, 4)?; // FIXED: Initialize at block 4 when factory exists
     println!("✅ Factory initialized successfully");
     
-    // STEP 4: Wand creation with DUST gambling
-    println!("\n🎰 STEP 4: Wand Creation with DUST Gambling");
+    // STEP 4: Coupon creation with DUST gambling
+    println!("\n🎰 STEP 4: Coupon Creation with DUST Gambling");
     let factory_id = AlkaneId { block: 4, tx: 0x701 };
     let dust_gamble_amount = 1000u128; // Gamble 1000 DUST tokens
     
@@ -693,7 +693,7 @@ fn test_minimal_debug_wand_creation() -> Result<()> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    factory_id.block, factory_id.tx, 1u128, // ForgeOrbital opcode (CORRECT!)
+                                    factory_id.block, factory_id.tx, 1u128, // ForgeCoupon opcode (CORRECT!)
                                     // NO amount parameter - amounts come from edicts!
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
@@ -712,8 +712,8 @@ fn test_minimal_debug_wand_creation() -> Result<()> {
     }]);
     index_block(&wand_forge_block, 5)?; // FIXED: Call after factory is initialized at block 4
     
-    // TRACE: Complete wand creation
-    println!("🔍 TRACE: Wand creation forge call at block 5");
+    // TRACE: Complete coupon creation
+    println!("🔍 TRACE: Coupon creation forge call at block 5");
     for vout in 0..3 {
         let trace_data = &view::trace(&OutPoint {
             txid: wand_forge_block.txdata[0].compute_txid(),
@@ -722,12 +722,12 @@ fn test_minimal_debug_wand_creation() -> Result<()> {
         let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
         let trace_guard = trace_result.0.lock().unwrap();
         if !trace_guard.is_empty() {
-            println!("   • Wand forge vout {} trace: {:?}", vout, *trace_guard);
+            println!("   • Coupon forge vout {} trace: {:?}", vout, *trace_guard);
         }
     }
     
-    println!("✅ Wand creation forge call completed");
-    println!("\n🎯 WAND CREATION RESULT: Complete gambling flow with {} DUST tested!", dust_gamble_amount);
+    println!("✅ Coupon creation forge call completed");
+    println!("\n🎯 COUPON CREATION RESULT: Complete gambling flow with {} DUST tested!", dust_gamble_amount);
     
     Ok(())
 }
@@ -744,8 +744,8 @@ fn test_minimal_debug_dust_gambling_mechanics() -> Result<()> {
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
             free_mint_build::get_bytes(),
-            wand_token_build::get_bytes(),
-            wand_factory_build::get_bytes(),
+            coupon_template_build::get_bytes(),
+            factory_build::get_bytes(),
             auth_token_build::get_bytes(),
         ].into(),
         [
@@ -812,7 +812,7 @@ fn test_minimal_debug_dust_gambling_mechanics() -> Result<()> {
     
     // Factory initialization
     let dust_token_id = AlkaneId { block: 2, tx: 797 };
-    let orbital_token_template_id = AlkaneId { block: 4, tx: 0x601 };
+    let coupon_token_template_id = AlkaneId { block: 4, tx: 0x601 };
     
     let init_factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: Version::ONE,
@@ -846,7 +846,7 @@ fn test_minimal_debug_dust_gambling_mechanics() -> Result<()> {
                                     dust_token_id.block, dust_token_id.tx,
                                     144u128, // Success threshold (lower for testing)
                                     5u128,   // DUST bonus rate
-                                    orbital_token_template_id.block, orbital_token_template_id.tx,
+                                    coupon_token_template_id.block, coupon_token_template_id.tx,
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -911,7 +911,7 @@ fn test_minimal_debug_dust_gambling_mechanics() -> Result<()> {
                             vec![
                                 Protostone {
                                     message: into_cellpack(vec![
-                                        factory_id.block, factory_id.tx, 1u128, // ForgeOrbital opcode (CORRECT!)
+                                        factory_id.block, factory_id.tx, 1u128, // ForgeCoupon opcode (CORRECT!)
                                         // NO amount parameter - amounts come from edicts!
                                     ]).encipher(),
                                     protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
@@ -1023,8 +1023,8 @@ fn test_linear_probability_demonstration() -> Result<()> {
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
             free_mint_build::get_bytes(),
-            wand_token_build::get_bytes(),
-            wand_factory_build::get_bytes(),
+            coupon_template_build::get_bytes(),
+            factory_build::get_bytes(),
             auth_token_build::get_bytes(),
         ].into(),
         [
@@ -1091,7 +1091,7 @@ fn test_linear_probability_demonstration() -> Result<()> {
     
     // Factory initialization
     let dust_token_id = AlkaneId { block: 2, tx: 797 };
-    let orbital_token_template_id = AlkaneId { block: 4, tx: 0x601 };
+    let coupon_token_template_id = AlkaneId { block: 4, tx: 0x601 };
     
     let init_factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: Version::ONE,
@@ -1125,7 +1125,7 @@ fn test_linear_probability_demonstration() -> Result<()> {
                                     dust_token_id.block, dust_token_id.tx,
                                     144u128, // Success threshold
                                     5u128,   // DUST bonus rate (5 per 1000 DUST)
-                                    orbital_token_template_id.block, orbital_token_template_id.tx,
+                                    coupon_token_template_id.block, coupon_token_template_id.tx,
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -1210,7 +1210,7 @@ fn test_linear_probability_demonstration() -> Result<()> {
                                 vec![
                                     Protostone {
                                         message: into_cellpack(vec![
-                                            factory_id.block, factory_id.tx, 1u128, // ForgeOrbital opcode
+                                            factory_id.block, factory_id.tx, 1u128, // ForgeCoupon opcode
                                         ]).encipher(),
                                         protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                         pointer: Some(0),

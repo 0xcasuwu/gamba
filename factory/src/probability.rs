@@ -32,12 +32,12 @@ impl ProbabilityCalculator {
         let win_probability = Self::calculate_win_probability(dust_amount);
         let total_stake = position_token_value + dust_amount;
         
-        // Expected value = (win_probability * wand_value) - (loss_probability * stake)
-        // Assuming wand value equals stake for simplicity
-        let wand_value = total_stake as f64;
+        // Expected value = (win_probability * coupon_value) - (loss_probability * stake)
+        // Assuming coupon value equals stake for simplicity
+        let coupon_value = total_stake as f64;
         let loss_probability = 1.0 - win_probability;
         
-        (win_probability * wand_value) - (loss_probability * total_stake as f64)
+        (win_probability * coupon_value) - (loss_probability * total_stake as f64)
     }
     
     /// Get optimal dust amount for maximum expected value

@@ -69,7 +69,7 @@ fn main() {
         .join("src");
 
     fs::create_dir_all(&write_dir.join("precompiled")).unwrap();
-    fs::create_dir_all(&write_dir.join("tests").join("std")).unwrap();
+    fs::create_dir_all(&write_dir.join("precompiled")).unwrap();
     
     // Use CARGO_MANIFEST_DIR for reliable path resolution
     let crates_dir: PathBuf = if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
@@ -164,7 +164,7 @@ fn main() {
                     fs::write(&Path::new(&wasm_str).join("wasm32-unknown-unknown").join("release").join(subbed.clone() + ".wasm.gz"), &compressed)?;
                     let data: String = hex::encode(&f);
                     
-                    let build_file_path = write_dir.join("tests").join("std").join(subbed.clone() + "_build.rs");
+                    let build_file_path = write_dir.join("precompiled").join(subbed.clone() + "_build.rs");
                     fs::write(
                         &build_file_path,
                         String::from("use hex_lit::hex;\n#[allow(long_running_const_eval)]\npub fn get_bytes() -> Vec<u8> { (&hex!(\"")
@@ -191,7 +191,7 @@ fn main() {
             
         eprintln!("Built alkanes modules: {:?}", built_modules);
         
-        let mod_rs_path = write_dir.join("tests").join("std").join("mod.rs");
+        let mod_rs_path = write_dir.join("precompiled").join("mod.rs");
         let mod_content = if built_modules.is_empty() {
             "// Auto-generated build modules\n// No alkanes successfully compiled\n".to_string()
         } else {

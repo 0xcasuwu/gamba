@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "alkanes/factory", "alkanes/coupon-template", "factory", "coupon-template"]
+members = [".", "alkanes/factory", "alkanes/coupon-template", "alkanes/free-mint", "alkanes/auth-token", "factory", "coupon-template"]
 resolver = "2"
 
 [workspace.dependencies]

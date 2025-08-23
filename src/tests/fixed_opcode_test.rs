@@ -1,15 +1,15 @@
 /*
- * 🔧 FIXED OPCODE TEST - Orbital Wand System
- * ==========================================
- * 
- * PROBLEM IDENTIFIED: All existing tests call opcode 42 ("CastWand") 
- * but the actual wand-factory uses opcode 1 ("ForgeOrbital")!
- * 
- * This test uses CORRECT opcodes from alkanes/wand-factory/src/lib.rs:
+ * 🔧 FIXED OPCODE TEST - Coupon System
+ * ====================================
+ *
+ * PROBLEM IDENTIFIED: All existing tests call opcode 42 ("CastWand")
+ * but the actual coupon-factory uses opcode 1 ("RedeemCoupon")!
+ *
+ * This test uses CORRECT opcodes from alkanes/coupon-factory/src/lib.rs:
  * - Opcode 0: Initialize
- * - Opcode 1: ForgeOrbital 
- * - Opcode 10: GetSuccessfulForges
- * - Opcode 11: GetFailedForges
+ * - Opcode 1: RedeemCoupon
+ * - Opcode 10: GetSuccessfulCoupons
+ * - Opcode 11: GetFailedCoupons
  * - etc.
  */
 
@@ -34,8 +34,8 @@ use protorune::protostone::Protostones;
 use protorune::message::MessageContext;
 use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
-use crate::precompiled::wand_factory_build;
-use crate::precompiled::wand_token_build;
+use crate::precompiled::factory_build;
+use crate::precompiled::coupon_template_build;
 use crate::precompiled::free_mint_build;
 use crate::precompiled::auth_token_build;
 
@@ -50,9 +50,9 @@ pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
 }
 
 #[wasm_bindgen_test]
-fn test_fixed_opcodes_forge_success() -> Result<()> {
-    println!("\n🔧 FIXED OPCODE TEST: Corrected Orbital Forge");
-    println!("==============================================");
+fn test_fixed_opcodes_coupon_success() -> Result<()> {
+    println!("\n🔧 FIXED OPCODE TEST: Corrected Coupon Redemption");
+    println!("=================================================");
     
     clear();
     
@@ -62,14 +62,14 @@ fn test_fixed_opcodes_forge_success() -> Result<()> {
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
             free_mint_build::get_bytes(),      // DUST token template
-            wand_token_build::get_bytes(),     // Orbital token template  
-            wand_factory_build::get_bytes(),   // Factory template
+            coupon_template_build::get_bytes(),   // Coupon token template
+            factory_build::get_bytes(), // Factory template
             auth_token_build::get_bytes(),     // Auth token template
         ].into(),
         [
             vec![3u128, 797u128, 101u128],     // free_mint instance at 4,797
-            vec![3u128, 0x601, 10u128],        // wand_token instance at 4,0x601
-            vec![3u128, 0x701, 10u128],        // wand_factory instance at 4,0x701
+            vec![3u128, 0x601, 10u128],        // coupon_token instance at 4,0x601
+            vec![3u128, 0x701, 10u128],        // coupon_factory instance at 4,0x701
             vec![3u128, 0xffee, 0u128, 1u128], // auth_token instance at 4,0xffee
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
@@ -184,8 +184,8 @@ fn test_fixed_opcodes_forge_success() -> Result<()> {
     index_block(&init_factory_block, 2)?;
     println!("✅ Factory initialized with CORRECT opcode 0");
     
-    // STEP 4: Test forge with CORRECT opcode 1
-    println!("\n🎰 STEP 4: Orbital forge attempt (CORRECTED OPCODE 1)");
+    // STEP 4: Test coupon redemption with CORRECT opcode 1
+    println!("\n🎰 STEP 4: Coupon redemption attempt (CORRECTED OPCODE 1)");
     let forge_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: Version::ONE,
         lock_time: bitcoin::absolute::LockTime::ZERO,
@@ -223,7 +223,7 @@ fn test_fixed_opcodes_forge_success() -> Result<()> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    4u128, 0x701, 1u128,  // CORRECT: ForgeOrbital opcode 1 (NOT 42!)
+                                    4u128, 0x701, 1u128,  // CORRECT: RedeemCoupon opcode 1 (NOT 42!)
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -258,9 +258,9 @@ fn test_fixed_opcodes_forge_success() -> Result<()> {
     } else {
         println!("   ✅ SUCCESS: Opcode recognized!");
         if trace_str.contains("ReturnContext") {
-            println!("   🎉 FORGE COMPLETED: Function executed successfully!");
+            println!("   🎉 REDEMPTION COMPLETED: Function executed successfully!");
         } else {
-            println!("   ⚠️  FORGE FAILED: Function executed but failed logic check");
+            println!("   ⚠️  REDEMPTION FAILED: Function executed but failed logic check");
         }
     }
     
@@ -268,9 +268,9 @@ fn test_fixed_opcodes_forge_success() -> Result<()> {
     println!("\n📊 STEP 6: Testing getter functions (CORRECTED OPCODES)");
     
     let getter_tests = vec![
-        (10u128, "GetSuccessfulForges"),
-        (11u128, "GetFailedForges"), 
-        (12u128, "GetTotalForges"),
+        (10u128, "GetSuccessfulCoupons"),
+        (11u128, "GetFailedCoupons"),
+        (12u128, "GetTotalCoupons"),
         (20u128, "GetDustTokenId"),
         (21u128, "GetSuccessThreshold"),
         (22u128, "GetDustBonusRate"),
@@ -328,9 +328,9 @@ fn test_fixed_opcodes_forge_success() -> Result<()> {
     
     println!("\n🎯 FIXED OPCODE TEST COMPLETE");
     println!("===============================");
-    println!("✅ All operations used CORRECT opcodes from wand-factory implementation");
+    println!("✅ All operations used CORRECT opcodes from coupon-factory implementation");
     println!("✅ No more 'Unrecognized opcode' errors expected");
-    println!("✅ Orbital system ready for comprehensive testing");
+    println!("✅ Coupon system ready for comprehensive testing");
     
     Ok(())
 }
@@ -339,25 +339,25 @@ fn test_fixed_opcodes_forge_success() -> Result<()> {
 fn test_opcode_comparison_table() -> Result<()> {
     println!("\n📋 OPCODE COMPARISON: Expected vs Actual");
     println!("========================================");
-    println!("| Function           | OLD (Wrong) | NEW (Correct) |");
-    println!("|--------------------|-------------|---------------|");
-    println!("| Initialize         | ???         | 0             |");
-    println!("| ForgeOrbital       | 42          | 1             |");
-    println!("| GetSuccessfulForges| ???         | 10            |");
-    println!("| GetFailedForges    | ???         | 11            |");
-    println!("| GetTotalForges     | ???         | 12            |");
-    println!("| GetDustTokenId     | ???         | 20            |");
-    println!("| GetSuccessThreshold| ???         | 21            |");
-    println!("| GetDustBonusRate   | ???         | 22            |");
-    println!("| GetOrbitalTemplate | ???         | 23            |");
-    println!("| GetAllOrbitals     | ???         | 30            |");
-    println!("| IsRegisteredOrbital| ???         | 31            |");
-    println!("| GetFactoryInfo     | ???         | 40            |");
-    println!("| CalculateBaseXor   | ???         | 50            |");
-    println!("| CalculateDustBonus | ???         | 51            |");
+    println!("| Function             | OLD (Wrong) | NEW (Correct) |");
+    println!("|--------------------- |-------------|---------------|");
+    println!("| Initialize           | ???         | 0             |");
+    println!("| RedeemCoupon         | 42          | 1             |");
+    println!("| GetSuccessfulCoupons | ???         | 10            |");
+    println!("| GetFailedCoupons     | ???         | 11            |");
+    println!("| GetTotalCoupons      | ???         | 12            |");
+    println!("| GetDustTokenId       | ???         | 20            |");
+    println!("| GetSuccessThreshold  | ???         | 21            |");
+    println!("| GetDustBonusRate     | ???         | 22            |");
+    println!("| GetCouponTemplate    | ???         | 23            |");
+    println!("| GetAllCoupons        | ???         | 30            |");
+    println!("| IsRegisteredCoupon   | ???         | 31            |");
+    println!("| GetFactoryInfo       | ???         | 40            |");
+    println!("| CalculateBaseXor     | ???         | 50            |");
+    println!("| CalculateDustBonus   | ???         | 51            |");
     println!("========================================");
     println!("🔧 ISSUE: Tests were calling non-existent opcode 42");
-    println!("✅ SOLUTION: Use correct opcode 1 for ForgeOrbital");
+    println!("✅ SOLUTION: Use correct opcode 1 for RedeemCoupon");
     
     Ok(())
 }

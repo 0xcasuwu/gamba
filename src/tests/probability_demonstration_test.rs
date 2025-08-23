@@ -1,5 +1,5 @@
-// Linear Probability Demonstration Test for Gamba Orbital Wand Creation
-// This test demonstrates how DUST amounts linearly improve wand creation success rates
+// Linear Probability Demonstration Test for Gamba Coupon Creation
+// This test demonstrates how DUST amounts linearly improve coupon creation success rates
 // by performing multiple forge attempts and tracking actual vs theoretical probabilities
 
 use alkanes::view;
@@ -25,8 +25,8 @@ use protorune::protostone::Protostones;
 use protorune::message::MessageContext;
 use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
-use crate::precompiled::wand_factory_build;
-use crate::precompiled::wand_token_build;
+use crate::precompiled::factory_build;
+use crate::precompiled::coupon_template_build;
 use crate::precompiled::free_mint_build;
 use crate::precompiled::auth_token_build;
 
@@ -52,8 +52,8 @@ fn test_linear_probability_demonstration() -> Result<()> {
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
             free_mint_build::get_bytes(),
-            wand_token_build::get_bytes(),
-            wand_factory_build::get_bytes(),
+            coupon_template_build::get_bytes(),
+            factory_build::get_bytes(),
             auth_token_build::get_bytes(),
         ].into(),
         [
@@ -120,7 +120,7 @@ fn test_linear_probability_demonstration() -> Result<()> {
     
     // Factory initialization
     let dust_token_id = AlkaneId { block: 2, tx: 797 };
-    let orbital_token_template_id = AlkaneId { block: 4, tx: 0x601 };
+    let coupon_token_template_id = AlkaneId { block: 4, tx: 0x601 };
     
     let init_factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: Version::ONE,
@@ -154,7 +154,7 @@ fn test_linear_probability_demonstration() -> Result<()> {
                                     dust_token_id.block, dust_token_id.tx,
                                     144u128, // Success threshold
                                     5u128,   // DUST bonus rate (5 per 1000 DUST)
-                                    orbital_token_template_id.block, orbital_token_template_id.tx,
+                                    coupon_token_template_id.block, coupon_token_template_id.tx,
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -240,7 +240,7 @@ fn test_linear_probability_demonstration() -> Result<()> {
                                 vec![
                                     Protostone {
                                         message: into_cellpack(vec![
-                                            factory_id.block, factory_id.tx, 1u128, // ForgeOrbital opcode
+                                            factory_id.block, factory_id.tx, 1u128, // ForgeCoupon opcode
                                         ]).encipher(),
                                         protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                         pointer: Some(0),

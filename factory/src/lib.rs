@@ -8,5 +8,5 @@ pub mod coupon_svg;
 
 pub mod tests {
     pub mod std;
-    // pub mod orbital_wand_integration_test; // Disabled during compilation fixes
+    // pub mod coupon_integration_test; // Disabled during compilation fixes
 }

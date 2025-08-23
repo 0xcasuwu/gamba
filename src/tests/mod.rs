@@ -1,5 +1,10 @@
-pub mod std;
+pub mod builds;
 pub mod debug_minimal_test;
-pub mod comprehensive_orbital_test;
+pub mod comprehensive_coupon_test;
 pub mod probability_demonstration_test;
 pub mod fixed_opcode_test;
+pub mod coupon_factory_verification_test;
+pub mod coupon_integration_test;
+pub mod coupon_system_integration_test;
+pub mod test_basic_factory_clean;
+pub mod coupon_utils;
