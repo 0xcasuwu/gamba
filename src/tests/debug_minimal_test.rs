@@ -154,70 +154,8 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
      let dust_token_id = AlkaneId { block: 2, tx: 797 };
      let coupon_token_template_id = AlkaneId { block: 4, tx: 0x601 }; // FIXED: instance at block 4
      
-     let init_factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
-         version: Version::ONE,
-         lock_time: bitcoin::absolute::LockTime::ZERO,
-         input: vec![TxIn {
-             previous_output: OutPoint::null(),
-             script_sig: ScriptBuf::new(),
-             sequence: Sequence::MAX,
-             witness: Witness::new()
-         }],
-         output: vec![
-             TxOut {
-                 script_pubkey: Address::from_str(ADDRESS1().as_str())
-                     .unwrap()
-                     .require_network(get_btc_network())
-                     .unwrap()
-                     .script_pubkey(),
-                 value: Amount::from_sat(546),
-             },
-             TxOut {
-                 script_pubkey: (Runestone {
-                     edicts: vec![],
-                     etching: None,
-                     mint: None,
-                     pointer: None,
-                     protocol: Some(
-                         vec![
-                             Protostone {
-                                 message: into_cellpack(vec![
-                                     4u128, 0x701, 0u128, // Initialize coupon factory (opcode 0 for init)
-                                     dust_token_id.block, dust_token_id.tx,
-                                     144u128, // Success threshold
-                                     5u128, // DUST bonus rate
-                                     coupon_token_template_id.block, coupon_token_template_id.tx,
-                                 ]).encipher(),
-                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
-                                 pointer: Some(0),
-                                 refund: Some(0),
-                                 from: None,
-                                 burn: None,
-                                 edicts: vec![],
-                             }
-                         ].encipher()?
-                     )
-                 }).encipher(),
-                 value: Amount::from_sat(546)
-             }
-         ],
-     }]);
-     index_block(&init_factory_block, 2)?; // FIXED: Initialize at block 4 when factory exists
- 
-         for (i, tx) in init_factory_block.txdata.iter().enumerate() {
-         println!("   • TX {} traces:", i);
-         for vout in 0..5 {
-             let trace_data = &view::trace(&OutPoint {
-                 txid: tx.compute_txid(),
-                 vout,
-             })?;
-             let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
-             let trace_guard = trace_result.0.lock().unwrap();
-             if !trace_guard.is_empty() {
-                 println!("     - vout {}: {:?}", vout, *trace_guard);
-             }
-         }
-     }
+     // Removed redundant factory initialization block
+     
      println!("✅ Factory initialized successfully");
      
      // STEP 4: Test simple getter call
