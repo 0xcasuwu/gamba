@@ -37,16 +37,8 @@ pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
         inputs: v[2..].into()
     }
 }
-
-#[wasm_bindgen_test]
-fn test_minimal_debug_factory_deployment() -> Result<()> {
-    println!("\n🔍 MINIMAL DEBUG: Factory Deployment Only");
-    println!("=========================================");
-    
-    clear();
-    
-    // STEP 1: Deploy templates only
-    println!("\n📦 STEP 1: Template Deployment");
+// Helper function to deploy templates
+fn deploy_initial_templates() -> Result<Block> {
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
             free_mint_build::get_bytes(),
@@ -55,23 +47,20 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
             auth_token_build::get_bytes(),
         ].into(),
         [
-            // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init)
-            // Arguments: token_units, value_per_mint, cap, name_part1, name_part2, symbol
             vec![3u128, 797u128, 0u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354],
-            // coupon_token template → deploys instance at block 4, tx 0x601 (opcode 0 for init)
-            // Arguments: position_id, deposit_amount, reward_debt, deposit_block, deposit_token_id.block, deposit_token_id.tx
-            vec![3u128, 0x601, 0u128, 0u128, 0u128, 0u128, 2u128, 797u128], // DUST token ID for deposit_token_id
-            // coupon_factory template → deploys instance at block 4, tx 0x701 (opcode 0 for init)
-            // Arguments: deposit_token_id.block, deposit_token_id.tx, reward_per_block, start_block, end_reward_block, free_mint_contract_id.block, free_mint_contract_id.tx
-            vec![3u128, 0x701, 0u128, 2u128, 797u128, 100u128, 0u128, 1000u128, 4u128, 797u128], // DUST token ID for deposit_token_id, free_mint instance ID for free_mint_contract_id
-            vec![3u128, 0xffee, 0u128, 1u128], // auth_token template → deploys at block 4
+            vec![3u128, 0x601, 0u128, 0u128, 0u128, 0u128, 2u128, 797u128],
+            vec![3u128, 0x701, 0u128, 2u128, 797u128, 100u128, 0u128, 1000u128, 4u128, 797u128],
+            vec![3u128, 0xffee, 0u128, 1u128],
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
-    
-    // TRACE: Template block deployment
-    println!("🔍 TRACE: Template block deployment at block 0");
-    for (i, tx) in template_block.txdata.iter().enumerate() {
+    Ok(template_block)
+}
+
+// Helper function to trace block transactions
+fn trace_block_transactions(block: &Block, block_name: &str) -> Result<()> {
+    println!("🔍 TRACE: {} at block {}", block_name, 0);
+    for (i, tx) in block.txdata.iter().enumerate() {
         println!("   • TX {} traces:", i);
         for vout in 0..5 {
             let trace_data = &view::trace(&OutPoint {
@@ -85,6 +74,20 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
             }
         }
     }
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+fn test_minimal_debug_factory_deployment() -> Result<()> {
+    println!("\n🔍 MINIMAL DEBUG: Factory Deployment Only");
+    println!("=========================================");
+    
+    clear();
+    
+    // STEP 1: Deploy templates only
+    println!("\n📦 STEP 1: Template Deployment");
+    let template_block = deploy_initial_templates()?;
+    trace_block_transactions(&template_block, "Template block deployment")?;
     println!("✅ Templates deployed successfully");
     
     // STEP 2: Deploy DUST token 
@@ -232,7 +235,79 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
      
      println!("✅ Simple getter test completed");
      
-     println!("\n🎯 MINIMAL DEBUG RESULT: Deployment and getter test successful!");
+     // STEP 5: Invoke deposit on factory
+     println!("\n💰 STEP 5: Deposit Free Mint into Factory");
+     let factory_id = AlkaneId { block: 4, tx: 0x701 };
+     let free_mint_instance_id = AlkaneId { block: 2, tx: 797 }; // This is the DUST token ID from STEP 2
+     
+     let deposit_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+         version: Version::ONE,
+         lock_time: bitcoin::absolute::LockTime::ZERO,
+         input: vec![TxIn {
+             previous_output: OutPoint::null(),
+             script_sig: ScriptBuf::new(),
+             sequence: Sequence::MAX,
+             witness: Witness::new()
+         }],
+         output: vec![
+             TxOut {
+                 script_pubkey: Address::from_str(ADDRESS1().as_str())
+                     .unwrap()
+                     .require_network(get_btc_network())
+                     .unwrap()
+                     .script_pubkey(),
+                 value: Amount::from_sat(546),
+             },
+             TxOut {
+                 script_pubkey: (Runestone {
+                     edicts: vec![
+                         ProtostoneEdict {
+                             id: free_mint_instance_id.into(), // The free mint token to deposit
+                             amount: 100000u128, // Amount to deposit
+                             output: 1, // Output index where the edict applies
+                         }.into()
+                     ],
+                     etching: None,
+                     mint: None,
+                     pointer: None,
+                     protocol: Some(
+                         vec![
+                             Protostone {
+                                 message: into_cellpack(vec![
+                                     factory_id.block, factory_id.tx, 1u128, // Deposit opcode
+                                 ]).encipher(),
+                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                 pointer: Some(0),
+                                 refund: Some(0),
+                                 from: None,
+                                 burn: None,
+                                 edicts: vec![],
+                             }
+                         ].encipher()?
+                     )
+                 }).encipher(),
+                 value: Amount::from_sat(546)
+             }
+         ],
+     }]);
+     index_block(&deposit_block, 6)?; // Index at block 6
+     
+     // TRACE: Deposit call
+     println!("🔍 TRACE: Deposit call at block 6");
+     for vout in 0..5 {
+         let trace_data = &view::trace(&OutPoint {
+             txid: deposit_block.txdata[0].compute_txid(),
+             vout,
+         })?;
+         let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+         let trace_guard = trace_result.0.lock().unwrap();
+         if !trace_guard.is_empty() {
+             println!("   • Deposit vout {} trace: {:?}", vout, *trace_guard);
+         }
+     }
+     println!("✅ Deposit call completed");
+     
+     println!("\n🎯 MINIMAL DEBUG RESULT: Deployment, getter, and deposit test successful!");
      
      Ok(())
  }
@@ -244,45 +319,8 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
      
      clear();
      
-     // FIXED: Consistent template deployment following boiler pattern
-     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
-         [
-             free_mint_build::get_bytes(),
-             coupon_template_build::get_bytes(),
-             factory_build::get_bytes(),
-             auth_token_build::get_bytes(),     // auth_token_build exists in precompiled
-         ].into(),
-         [
-             // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init)
-             // Arguments: token_units, value_per_mint, cap, name_part1, name_part2, symbol
-             vec![3u128, 797u128, 0u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354],
-             // coupon_token template → deploys instance at block 4, tx 0x601 (opcode 0 for init)
-             // Arguments: position_id, deposit_amount, reward_debt, deposit_block, deposit_token_id.block, deposit_token_id.tx
-             vec![3u128, 0x601, 0u128, 0u128, 0u128, 0u128, 2u128, 797u128], // DUST token ID for deposit_token_id
-             // coupon_factory template → deploys instance at block 4, tx 0x701 (opcode 0 for init)
-             // Arguments: deposit_token_id.block, deposit_token_id.tx, reward_per_block, start_block, end_reward_block, free_mint_contract_id.block, free_mint_contract_id.tx
-             vec![3u128, 0x701, 0u128, 2u128, 797u128, 100u128, 0u128, 1000u128, 4u128, 797u128], // DUST token ID for deposit_token_id, free_mint instance ID for free_mint_contract_id
-             vec![3u128, 0xffee, 0u128, 1u128], // auth_token template → deploys instance at block 4, tx 0xffee
-         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
-     );
-     index_block(&template_block, 0)?;
-     
-     // TRACE: Template block deployment
-     println!("🔍 TRACE: Template block deployment at block 0");
-     for (i, tx) in template_block.txdata.iter().enumerate() {
-         println!("   • TX {} traces:", i);
-         for vout in 0..5 {
-             let trace_data = &view::trace(&OutPoint {
-                 txid: tx.compute_txid(),
-                 vout,
-             })?;
-             let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
-             let trace_guard = trace_result.0.lock().unwrap();
-             if !trace_guard.is_empty() {
-                 println!("     - vout {}: {:?}", vout, *trace_guard);
-             }
-         }
-     }
+     let template_block = deploy_initial_templates()?;
+     trace_block_transactions(&template_block, "Template block deployment")?;
      println!("✅ Templates deployed: 3,n → instances at 4,n");
      
      let dust_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
