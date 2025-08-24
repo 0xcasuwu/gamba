@@ -1,3 +1,7 @@
 target/
 
 /reference/
+alkanes/release/
+alkanes/wasm32-unknown-unknown/
+target/alkanes/
+src/alkanes/mod.rs
