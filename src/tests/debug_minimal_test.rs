@@ -732,6 +732,7 @@ fn test_minimal_debug_coupon_creation() -> Result<()> {
     Ok(())
 }
 
+
 #[wasm_bindgen_test]
 fn test_minimal_debug_dust_gambling_mechanics() -> Result<()> {
     println!("\n🔍 MINIMAL DEBUG: DUST Gambling Mechanics Testing");
@@ -1010,6 +1011,7 @@ fn test_minimal_debug_dust_gambling_mechanics() -> Result<()> {
     
     Ok(())
 }
+
 
 #[wasm_bindgen_test]
 fn test_linear_probability_demonstration() -> Result<()> {
