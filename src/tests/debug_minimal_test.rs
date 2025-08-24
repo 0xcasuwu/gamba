@@ -16,9 +16,11 @@ use bitcoin::{Address, Amount, Block, Transaction, TxIn, TxOut, Witness};
 use ordinals::Runestone;
 use protorune::test_helpers::{get_btc_network, ADDRESS1};
 use protorune::{test_helpers as protorune_helpers};
-use protorune_support::protostone::Protostone;
+use protorune_support::protostone::{Protostone, ProtostoneEdict};
 use protorune::protostone::Protostones;
 use protorune::message::MessageContext;
+
+// Removed: use ordinals::Edict; // Import Edict
 use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
 use crate::precompiled::factory_build;
@@ -53,9 +55,15 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
             auth_token_build::get_bytes(),
         ].into(),
         [
-            vec![3u128, 797u128, 0u128],     // free_mint template → deploys at block 4 (opcode 0 for init)
-            vec![3u128, 0x601, 0u128],        // coupon_token template → deploys at block 4 (opcode 0 for init)
-            vec![3u128, 0x701, 0u128],        // coupon_factory template → deploys at block 4 (opcode 0 for init)
+            // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init)
+            // Arguments: token_units, value_per_mint, cap, name_part1, name_part2, symbol
+            vec![3u128, 797u128, 0u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354],
+            // coupon_token template → deploys instance at block 4, tx 0x601 (opcode 0 for init)
+            // Arguments: position_id, deposit_amount, reward_debt, deposit_block, deposit_token_id.block, deposit_token_id.tx
+            vec![3u128, 0x601, 0u128, 0u128, 0u128, 0u128, 2u128, 797u128], // DUST token ID for deposit_token_id
+            // coupon_factory template → deploys instance at block 4, tx 0x701 (opcode 0 for init)
+            // Arguments: deposit_token_id.block, deposit_token_id.tx, reward_per_block, start_block, end_reward_block, free_mint_contract_id.block, free_mint_contract_id.tx
+            vec![3u128, 0x701, 0u128, 2u128, 797u128, 100u128, 0u128, 1000u128, 4u128, 797u128], // DUST token ID for deposit_token_id, free_mint instance ID for free_mint_contract_id
             vec![3u128, 0xffee, 0u128, 1u128], // auth_token template → deploys at block 4
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
@@ -151,8 +159,8 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
      
      // STEP 3: Initialize factory (FIXED: Wait until factory exists at block 4+)
      println!("\n🏭 STEP 3: Factory Initialization");
-     let dust_token_id = AlkaneId { block: 2, tx: 797 };
-     let coupon_token_template_id = AlkaneId { block: 4, tx: 0x601 }; // FIXED: instance at block 4
+     let _dust_token_id = AlkaneId { block: 2, tx: 797 };
+     let _coupon_token_template_id = AlkaneId { block: 4, tx: 0x601 }; // FIXED: instance at block 4
      
      // Removed redundant factory initialization block
      
@@ -160,7 +168,7 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
      
      // STEP 4: Test simple getter call
      println!("\n📊 STEP 4: Simple Getter Test");
-     let factory_id = AlkaneId { block: 4, tx: 0x701 };
+     let _factory_id = AlkaneId { block: 4, tx: 0x701 };
      
      let getter_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
          version: Version::ONE,
@@ -245,9 +253,15 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
              auth_token_build::get_bytes(),     // auth_token_build exists in precompiled
          ].into(),
          [
-             vec![3u128, 797u128, 0u128],     // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init)
-             vec![3u128, 0x601, 0u128],        // coupon_token template → deploys instance at block 4, tx 0x601 (opcode 0 for init)
-             vec![3u128, 0x701, 0u128],        // coupon_factory template → deploys instance at block 4, tx 0x701 (opcode 0 for init)
+             // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init)
+             // Arguments: token_units, value_per_mint, cap, name_part1, name_part2, symbol
+             vec![3u128, 797u128, 0u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354],
+             // coupon_token template → deploys instance at block 4, tx 0x601 (opcode 0 for init)
+             // Arguments: position_id, deposit_amount, reward_debt, deposit_block, deposit_token_id.block, deposit_token_id.tx
+             vec![3u128, 0x601, 0u128, 0u128, 0u128, 0u128, 2u128, 797u128], // DUST token ID for deposit_token_id
+             // coupon_factory template → deploys instance at block 4, tx 0x701 (opcode 0 for init)
+             // Arguments: deposit_token_id.block, deposit_token_id.tx, reward_per_block, start_block, end_reward_block, free_mint_contract_id.block, free_mint_contract_id.tx
+             vec![3u128, 0x701, 0u128, 2u128, 797u128, 100u128, 0u128, 1000u128, 4u128, 797u128], // DUST token ID for deposit_token_id, free_mint instance ID for free_mint_contract_id
              vec![3u128, 0xffee, 0u128, 1u128], // auth_token template → deploys instance at block 4, tx 0xffee
          ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
      );
@@ -299,7 +313,7 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
                          vec![
                              Protostone {
                                  message: into_cellpack(vec![
-                                     4u128, 797u128, 77u128,   // FIXED: Call deployed free_mint instance at 4,797 (opcode 77 for MintTokens)
+                                     4u128, 797u128, 78u128,   // FIXED: Call deployed free_mint instance at 4,797 (opcode 78 for MintTokens)
                                      1000000u128,             
                                      1u128,                   
                                      100000u128,              
@@ -321,11 +335,12 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
      }]);
      index_block(&dust_block, 1)?;
      
-     println!("✅ DUST token call: 4,797,77 (CORRECT addressing)");
+     println!("✅ DUST token call: 4,797,78 (CORRECT addressing)");
      
      // STEP: Test minimal forge call (NO DUST, NO EDICTS)
      println!("\n🔥 STEP: Minimal Forge Call (No DUST)");
      let factory_id = AlkaneId { block: 4, tx: 0x701 };
+     let dust_token_id = AlkaneId { block: 2, tx: 797 }; // DUST token ID
      
      let forge_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
          version: Version::ONE,
@@ -347,7 +362,13 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
              },
              TxOut {
                  script_pubkey: (Runestone {
-                     edicts: vec![], // NO EDICTS!
+                     edicts: vec![
+                         ProtostoneEdict {
+                             id: dust_token_id.into(), // Convert AlkaneId to ProtoruneRuneId
+                             amount: 100000u128, // Amount of DUST to deposit
+                             output: 1, // Output index where the edict applies
+                         }.into()
+                     ],
                      etching: None,
                      mint: None,
                      pointer: None,
@@ -355,14 +376,14 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
                          vec![
                              Protostone {
                                  message: into_cellpack(vec![
-                                     factory_id.block, factory_id.tx, 1u128, // ForgeCoupon opcode (CORRECT!)
+                                     factory_id.block, factory_id.tx, 1u128, // Deposit opcode
                                  ]).encipher(),
                                  protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                  pointer: Some(0),
                                  refund: Some(0),
                                  from: None,
                                  burn: None,
-                                 edicts: vec![], // NO EDICTS!
+                                 edicts: vec![],
                              }
                          ].encipher()?
                      )
