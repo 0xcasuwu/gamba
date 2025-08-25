@@ -28,7 +28,6 @@ use alkanes::view;
 use alkanes::precompiled::free_mint_build;
 use crate::precompiled::factory_build;
 use crate::precompiled::coupon_template_build;
-use crate::precompiled::auth_token_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -227,19 +226,17 @@ fn test_debug_factory_deployment_with_minting() -> Result<()> {
             free_mint_build::get_bytes(),
             coupon_template_build::get_bytes(),
             factory_build::get_bytes(),
-            auth_token_build::get_bytes(),
         ].into(),
         [
             // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init)
             // Arguments: token_units, value_per_mint, cap, name_part1, name_part2, symbol
             vec![3u128, 797u128, 0u128],
             // coupon_token template → deploys instance at block 4, tx 0x601 (opcode 0 for init)
-            // Arguments: position_id, deposit_amount, reward_debt, deposit_block, deposit_token_id.block, deposit_token_id.tx
-            vec![3u128, 0x601, 0u128, 0u128, 0u128, 0u128, 2u128, 797u128], // DUST token ID for deposit_token_id
+            // Arguments: coupon_id, stake_amount, base_xor, stake_bonus, final_result, is_winner, creation_block, factory_block, factory_tx
+            vec![3u128, 0x601, 0u128, 1u128, 1000u128, 50u128, 10u128, 60u128, 1u128, 1u128, 4u128, 0x701u128], // Sample coupon initialization
             // coupon_factory template → deploys instance at block 4, tx 0x701 (opcode 0 for init)
-            // Arguments: deposit_token_id.block, deposit_token_id.tx, reward_per_block, start_block, end_reward_block, free_mint_contract_id.block, free_mint_contract_id.tx
-            vec![3u128, 0x701, 0u128, 2u128, 797u128, 100u128, 0u128, 1000u128, 4u128, 797u128], // DUST token ID for deposit_token_id, free_mint instance ID for free_mint_contract_id
-            vec![3u128, 0xffee, 0u128, 1u128], // auth_token template → deploys at block 4
+            // Arguments: success_threshold, coupon_token_template_id
+            vec![3u128, 0x701, 0u128, 144u128, 4u128, 0x601u128], // success_threshold=144, coupon_template_id=4,0x601
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
@@ -262,9 +259,9 @@ fn test_debug_factory_deployment_with_minting() -> Result<()> {
     }
     println!("✅ Templates deployed successfully");
     
-    // STEP 2: Deploy DUST token 
-    println!("\n💨 STEP 2: DUST Token Deployment");
-    let dust_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+    // STEP 2: Initialize Free-Mint Contract (using working pattern from original test)
+    println!("\n🪙 STEP 2: Initializing Free-Mint Contract");
+    let free_mint_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: Version::ONE,
         lock_time: bitcoin::absolute::LockTime::ZERO,
         input: vec![TxIn {
@@ -290,78 +287,63 @@ fn test_debug_factory_deployment_with_minting() -> Result<()> {
                     pointer: None,
                     protocol: Some(
                         vec![
-                 Protostone {
-                                 message: into_cellpack(vec![
-                                     6u128, 797u128, 0u128,  // Deploy to block 6, tx 797, opcode 0 (Initialize)
-                                     1000000u128,            // token_units (initial supply)
-                                     100000u128,             // value_per_mint  
-                                     1000000000u128,         // cap (high cap for testing)
-                                     0x54455354,             // name_part1 ("TEST")
-                                     0x434f494e,             // name_part2 ("COIN")
-                                     0x545354,               // symbol ("TST")
-                                 ]).encipher(),
-                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
-                                 pointer: Some(0),
-                                 refund: Some(0),
-                                 from: None,
-                                 burn: None,
-                                 edicts: vec![],
-                             }
-                         ].encipher()?
-                     )
-                 }).encipher(),
-                 value: Amount::from_sat(546)
-             }
-         ],
-     }]);
-     index_block(&dust_block, 1)?;
-     
-     // TRACE: DUST token deployment
-     for (i, tx) in dust_block.txdata.iter().enumerate() {
-         println!("   • TX {} traces:", i);
-         for vout in 0..5 {
-             let trace_data = &view::trace(&OutPoint {
-                 txid: tx.compute_txid(),
-                 vout,
-             })?;
-             let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
-             let trace_guard = trace_result.0.lock().unwrap();
-             if !trace_guard.is_empty() {
-                 println!("     - vout {}: {:?}", vout, *trace_guard);
-             }
-         }
-     }
-     println!("✅ DUST token deployed successfully");
-     
-     // STEP 3: Mint tokens from the Free-Mint Contract (using working minting pattern)
-     println!("\n💰 STEP 3: Minting Tokens from Free-Mint Contract");
-     let free_mint_contract_id = AlkaneId { block: 2, tx: 1 }; // Factory spawns free-mint at block 2, tx 1
-     println!("🔍 Expected free-mint contract ID: {:?}", free_mint_contract_id);
-     let mint_block_height = 5;
-     let minted_block = mint_tokens_from_free_mint_contract(&free_mint_contract_id, mint_block_height)?;
-     
-     // Verify minted tokens (using working verification pattern)
-     let mint_outpoint = OutPoint {
-         txid: minted_block.txdata[0].compute_txid(),
-         vout: 0,
-     };
-     let mint_sheet = load_sheet(&RuneTable::for_protocol(AlkaneMessageContext::protocol_tag())
-         .OUTPOINT_TO_RUNES.select(&consensus_encode(&mint_outpoint)?));
-     let minted_token_id = ProtoruneRuneId { block: 2, tx: 1 }; // Free-mint contract spawned at block 2, tx 1
-     let minted_amount = mint_sheet.get(&minted_token_id);
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    6u128, 797u128, 0u128,  // Deploy to block 6, tx 797, opcode 0 (Initialize)
+                                    1000000u128,            // token_units (initial supply)
+                                    100000u128,             // value_per_mint  
+                                    1000000000u128,         // cap (high cap for testing)
+                                    0x54455354,             // name_part1 ("TEST")
+                                    0x434f494e,             // name_part2 ("COIN")
+                                    0x545354,               // symbol ("TST")
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&free_mint_block, 1)?;
+    
+    let free_mint_contract_id = AlkaneId { block: 2, tx: 1 };
+    println!("✅ Free-mint contract initialized at {:?}", free_mint_contract_id);
 
-     println!("🔍 Minted token ID: {:?}", minted_token_id);
-     println!("🔍 Minted amount: {}", minted_amount);
+    // STEP 3: Mint tokens from the Free-Mint Contract (using working minting pattern)
+    println!("\n💰 STEP 3: Minting Tokens from Free-Mint Contract");
+    println!("🔍 Expected free-mint contract ID: {:?}", free_mint_contract_id);
+    let mint_block_height = 5;
+    let minted_block = mint_tokens_from_free_mint_contract(&free_mint_contract_id, mint_block_height)?;
+    
+    // Verify minted tokens (using working verification pattern)
+    let mint_outpoint = OutPoint {
+        txid: minted_block.txdata[0].compute_txid(),
+        vout: 0,
+    };
+    let mint_sheet = load_sheet(&RuneTable::for_protocol(AlkaneMessageContext::protocol_tag())
+        .OUTPOINT_TO_RUNES.select(&consensus_encode(&mint_outpoint)?));
+    let minted_token_id = ProtoruneRuneId { block: 2, tx: 1 }; // Free-mint contract spawned at block 2, tx 1
+    let minted_amount = mint_sheet.get(&minted_token_id);
 
-     assert!(minted_amount > 0, "Expected minted amount to be greater than 0");
-     println!("✅ Tokens successfully minted and verified.");
+    println!("🔍 Minted token ID: {:?}", minted_token_id);
+    println!("🔍 Minted amount: {}", minted_amount);
 
-     println!("\n🎊 DEBUG FACTORY DEPLOYMENT WITH MINTING TEST SUMMARY");
-     println!("====================================================");
-     println!("✅ Templates deployed successfully.");
-     println!("✅ DUST token deployed and initialized.");
-     println!("✅ Tokens successfully minted from the free-mint contract.");
-     println!("✅ Test completed successfully.");
+    assert!(minted_amount > 0, "Expected minted amount to be greater than 0");
+    println!("✅ Tokens successfully minted and verified.");
+
+    println!("\n🎊 DEBUG FACTORY DEPLOYMENT WITH MINTING TEST SUMMARY");
+    println!("====================================================");
+    println!("✅ Templates deployed successfully.");
+    println!("✅ Free-mint contract initialized.");
+    println!("✅ Tokens successfully minted from the free-mint contract.");
+    println!("✅ Test completed successfully.");
 
     Ok(())
 }
