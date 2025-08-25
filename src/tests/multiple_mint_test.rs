@@ -21,6 +21,8 @@ use protorune::{test_helpers as protorune_helpers};
 use protorune_support::{balance_sheet::ProtoruneRuneId, protostone::{Protostone}};
 use protorune::protostone::Protostones;
 use metashrew_core::{println, stdio::stdout};
+use protobuf::Message;
+use alkanes::view;
 // use protobuf::Message; // Removed unused import
 
 use alkanes::precompiled::free_mint_build;
@@ -188,5 +190,22 @@ fn test_free_mint_contract_minting() -> Result<()> {
     println!("✅ Tokens successfully minted from the contract.");
     println!("✅ Test completed successfully.");
 
+        // TRACE: Minted block data
+    println!("🔍 TRACE: Minted block data at block {}", mint_block_height);
+    for (i, tx) in minted_block.txdata.iter().enumerate() {
+        println!("   • TX {} traces:", i);
+        for vout in 0..5 {
+            let trace_data = &view::trace(&OutPoint {
+                txid: tx.compute_txid(),
+                
+                vout,
+            })?;
+            let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+            let trace_guard = trace_result.0.lock().unwrap();
+            if !trace_guard.is_empty() {
+                println!("     - vout {}: {:?}", vout, *trace_guard);
+            }
+        }
+    }
     Ok(())
 }
