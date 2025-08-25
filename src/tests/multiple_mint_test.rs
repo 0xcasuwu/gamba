@@ -230,7 +230,7 @@ fn test_debug_factory_deployment_with_minting() -> Result<()> {
         [
             // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init)
             // Arguments: token_units, value_per_mint, cap, name_part1, name_part2, symbol
-            vec![3u128, 797u128, 0u128],
+            vec![3u128, 797u128, 101u128],
             // coupon_token template → deploys instance at block 4, tx 0x601 (opcode 0 for init)
             // Arguments: coupon_id, stake_amount, base_xor, stake_bonus, final_result, is_winner, creation_block, factory_block, factory_tx
             vec![3u128, 0x601, 0u128, 1u128, 1000u128, 50u128, 10u128, 60u128, 1u128, 1u128, 4u128, 0x701u128], // Sample coupon initialization
