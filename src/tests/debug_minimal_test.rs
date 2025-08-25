@@ -213,7 +213,8 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
      
      // STEP 3: Mint tokens from the Free-Mint Contract (following multiple_mint_test.rs pattern)
      println!("\n💰 STEP 3: Minting Tokens from Free-Mint Contract");
-     let free_mint_contract_id = AlkaneId { block: 4, tx: 797 }; // FIXED: Use correct contract ID from template deployment
+     let free_mint_contract_id = AlkaneId { block: 2, tx: 1 }; // Factory spawns free-mint at block 2, tx 1
+     println!("🔍 Expected free-mint contract ID: {:?}", free_mint_contract_id);
      let mint_block_height = 5;
      let minted_block = mint_tokens_from_free_mint_contract(&free_mint_contract_id, mint_block_height)?;
      
@@ -224,7 +225,7 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
      };
      let mint_sheet = load_sheet(&RuneTable::for_protocol(AlkaneMessageContext::protocol_tag())
          .OUTPOINT_TO_RUNES.select(&consensus_encode(&mint_outpoint)?));
-     let minted_token_id = ProtoruneRuneId { block: 4, tx: 797 }; // FIXED: Use correct token ID
+     let minted_token_id = ProtoruneRuneId { block: 2, tx: 1 }; // Free-mint contract spawned at block 2, tx 1
      let minted_amount = mint_sheet.get(&minted_token_id);
 
      println!("🔍 Minted token ID: {:?}", minted_token_id);
