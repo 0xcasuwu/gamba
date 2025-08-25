@@ -12,14 +12,18 @@ use alkanes_support::id::AlkaneId;
 use alkanes::tests::helpers as alkane_helpers;
 use bitcoin::{transaction::Version, ScriptBuf, Sequence};
 use bitcoin::{Address, Amount, Block, Transaction, TxIn, TxOut, Witness};
-
+use protorune_support::balance_sheet::ProtoruneRuneId;
 use ordinals::Runestone;
 use protorune::test_helpers::{get_btc_network, ADDRESS1};
 use protorune::{test_helpers as protorune_helpers};
 use protorune_support::protostone::{Protostone, ProtostoneEdict};
 use protorune::protostone::Protostones;
 use protorune::message::MessageContext;
-
+use protorune_support::utils::consensus_encode;
+use protorune::tables::RuneTable;
+use metashrew_support::index_pointer::KeyValuePointer;
+use protorune_support::balance_sheet::BalanceSheetOperations;
+use protorune::balance_sheet::load_sheet;
 // Removed: use ordinals::Edict; // Import Edict
 use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
@@ -226,68 +230,9 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
     //      let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
     //      let trace_guard = trace_result.0.lock().unwrap();
     //      if !trace_guard.is_empty() {
-    //          println!("   • Getter vout {} trace: {:?}", vout, *trace_guard);
+    //          println!("     - vout {}: {:?}", vout, *trace_guard);
     //      }
     //  }
-     
-        let mint_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
-            version: Version::ONE,
-            lock_time: bitcoin::absolute::LockTime::ZERO,
-            input: vec![TxIn {
-                previous_output: OutPoint::null(),
-                script_sig: ScriptBuf::new(),
-                sequence: Sequence::MAX,
-                witness: Witness::new()
-            }],
-            output: vec![
-                TxOut {
-                    script_pubkey: Address::from_str(ADDRESS1().as_str())
-                        .unwrap()
-                        .require_network(get_btc_network())
-                        .unwrap()
-                        .script_pubkey(),
-                    value: Amount::from_sat(546),
-                },
-                TxOut {
-                    script_pubkey: (Runestone {
-                        edicts: vec![],
-                        etching: None,
-                        mint: None,
-                        pointer: None,
-                        protocol: Some(
-                            vec![
-                                Protostone {
-                                    message: into_cellpack(vec![2u128, 0u128, 100u128]).encipher(), // MintTokens
-                                    protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
-                                    pointer: Some(0),
-                                    refund: Some(0),
-                                    from: None,
-                                    burn: None,
-                                    edicts: vec![],
-                                }
-                            ].encipher()?
-                        )
-                    }).encipher(),
-                    value: Amount::from_sat(546)
-                }
-            ],
-        }]);
-        index_block(&mint_block, 3)?;
-     
-        for (i, tx) in mint_block.txdata.iter().enumerate() {
-         println!("   • TX {} traces:", i);
-         for vout in 0..5 {
-             let trace_data = &view::trace(&OutPoint {
-                 txid: tx.compute_txid(),
-                 vout,
-             })?;
-             let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
-             let trace_guard = trace_result.0.lock().unwrap();
-             if !trace_guard.is_empty() {
-                 println!("     - vout {}: {:?}", vout, *trace_guard);
-             }
-         }
-     }
-     Ok(())
- }
- 
+
+    Ok(())
+}

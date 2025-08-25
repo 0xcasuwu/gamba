@@ -71,3 +71,7 @@ protorune = { git = "https://github.com/kungfuflex/alkanes-rs", features = [
     "test-utils",
 ] }
 hex_lit = "0.1.1"
+
+[[test]]
+name = "multiple_mint_test"
+path = "src/tests/multiple_mint_test.rs"
