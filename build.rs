@@ -231,6 +231,18 @@ fn main() {
         )
         .unwrap();
         eprintln!("Built factory contract: {}", factory_name);
+        
+        // Generate factory_build.rs
+        let factory_data: String = hex::encode(&factory_wasm);
+        let factory_build_file_path = write_dir.join("precompiled").join("factory_build.rs");
+        fs::write(
+            &factory_build_file_path,
+            String::from("use hex_lit::hex;\n#[allow(long_running_const_eval)]\npub fn get_bytes() -> Vec<u8> { (&hex!(\"")
+                + factory_data.as_str()
+                + "\")).to_vec() }",
+        )
+        .unwrap();
+        eprintln!("Generated factory build file: {:?}", factory_build_file_path);
     }
 
     if coupon_template_dir.exists() {

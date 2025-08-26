@@ -26,6 +26,17 @@ const MINIMUM_STAKE_AMOUNT: u128 = 1000;
 #[derive(Default)]
 pub struct CouponFactory(());
 
+#[derive(Debug, Clone)]
+struct CouponDetails {
+    coupon_id: u128,
+    stake_amount: u128,
+    base_xor: u8,
+    stake_bonus: u8,
+    final_result: u8,
+    creation_block: u128,
+    is_winner: bool,
+}
+
 impl AlkaneResponder for CouponFactory {}
 
 #[derive(MessageDispatch)]
@@ -80,6 +91,19 @@ enum CouponFactoryMessage {
     #[opcode(51)]
     #[returns(u128)]
     GetMinimumStake,
+
+    #[opcode(60)]
+    RedeemWinningCoupon {
+        coupon_id: AlkaneId,
+    },
+
+    #[opcode(61)]
+    #[returns(u128)]
+    GetTotalPot,
+
+    #[opcode(62)]
+    #[returns(u128)]
+    GetBlockEndTime,
 }
 
 impl Token for CouponFactory {
@@ -118,16 +142,11 @@ impl CouponFactory {
         let context = self.context()?;
         let mut response = CallResponse::default();
 
+        // Validate incoming tokens following boiler pattern
+        let (stake_amount, stake_token_id) = self.validate_incoming_tokens(&context)?;
+        
         // Calculate base XOR from blockchain data
         let base_xor = self.calculate_base_xor_internal()?;
-
-        // Get staked tokens amount (any tokens accepted)
-        let stake_amount = self.get_stake_input_amount(&context)?;
-        
-        // Minimum stake validation
-        if stake_amount < MINIMUM_STAKE_AMOUNT {
-            return Err(anyhow!("Insufficient stake amount. Minimum: {}", MINIMUM_STAKE_AMOUNT));
-        }
 
         let stake_bonus = self.calculate_stake_bonus_internal(stake_amount)?;
         let final_result = base_xor.saturating_add(stake_bonus);
@@ -177,6 +196,78 @@ impl CouponFactory {
         // Staked tokens are consumed regardless of success/failure
         // (This is automatic as staked tokens are not returned in response)
 
+        Ok(response)
+    }
+
+    fn redeem_winning_coupon(&self, coupon_id: AlkaneId) -> Result<CallResponse> {
+        let context = self.context()?;
+        let mut response = CallResponse::default();
+
+        // Validate that the coupon is registered with this factory
+        if !self.is_registered_coupon_internal(&coupon_id) {
+            return Err(anyhow!("Coupon not registered with this factory"));
+        }
+
+        // Check if coupon has already been redeemed
+        if self.is_coupon_redeemed(&coupon_id) {
+            return Err(anyhow!("Coupon has already been redeemed"));
+        }
+
+        // Get coupon details by calling the coupon token
+        let coupon_details = self.get_coupon_details(&coupon_id)?;
+        
+        // Validate that this is a winning coupon
+        if !coupon_details.is_winner {
+            return Err(anyhow!("Only winning coupons can be redeemed"));
+        }
+
+        // Validate that the block has elapsed (redemption period has started)
+        let current_block = u128::from(self.height());
+        let block_end_time = self.get_block_end_time_internal()?;
+        
+        if current_block < block_end_time {
+            return Err(anyhow!("Redemption period has not started yet. Current block: {}, End time: {}", current_block, block_end_time));
+        }
+
+        // Calculate the user's share of the pot
+        let total_pot = self.get_total_pot_internal()?;
+        let user_share = self.calculate_user_share(coupon_details.stake_amount, total_pot)?;
+
+        // Validate that the coupon token is being sent by the holder
+        let coupon_transfer = self.validate_coupon_ownership(&context, &coupon_id)?;
+
+        // Transfer the user's share of the pot
+        let pot_share_transfer = AlkaneTransfer {
+            id: self.get_pot_token_id()?,
+            value: user_share,
+        };
+
+        // Return the pot share to the user
+        response.alkanes.0.push(pot_share_transfer);
+
+        // Mark the coupon as redeemed to prevent double redemption
+        self.mark_coupon_redeemed(&coupon_id)?;
+
+        Ok(response)
+    }
+
+    fn get_total_pot(&self) -> Result<CallResponse> {
+        let context = self.context()?;
+        let mut response = CallResponse::forward(&context.incoming_alkanes);
+        
+        let total_pot = self.get_total_pot_internal()?;
+        response.data = total_pot.to_le_bytes().to_vec();
+        
+        Ok(response)
+    }
+
+    fn get_block_end_time(&self) -> Result<CallResponse> {
+        let context = self.context()?;
+        let mut response = CallResponse::forward(&context.incoming_alkanes);
+        
+        let block_end_time = self.get_block_end_time_internal()?;
+        response.data = block_end_time.to_le_bytes().to_vec();
+        
         Ok(response)
     }
 
@@ -231,6 +322,45 @@ impl CouponFactory {
         Ok(TxMerkleNode::from_byte_array(*hash.as_byte_array()))
     }
 
+    fn validate_incoming_tokens(&self, context: &Context) -> Result<(u128, AlkaneId)> {
+        let mut total_stake = 0u128;
+        let mut stake_token_id = None;
+
+        // Validate incoming tokens following boiler pattern
+        for transfer in &context.incoming_alkanes.0 {
+            // Check if this is a valid stake token (from initialized free-mint contract)
+            if self.is_valid_stake_token(&transfer.id) {
+                if stake_token_id.is_none() {
+                    stake_token_id = Some(transfer.id.clone());
+                } else if stake_token_id.as_ref().unwrap() != &transfer.id {
+                    return Err(anyhow!("Multiple different token types not allowed for staking"));
+                }
+                total_stake = total_stake.checked_add(transfer.value)
+                    .ok_or_else(|| anyhow!("Stake amount overflow"))?;
+            } else {
+                return Err(anyhow!("Invalid token type for staking: {:?}. Only tokens from initialized free-mint contracts are accepted", transfer.id));
+            }
+        }
+
+        if total_stake == 0 {
+            return Err(anyhow!("No valid tokens received for staking"));
+        }
+
+        if total_stake < MINIMUM_STAKE_AMOUNT {
+            return Err(anyhow!("Insufficient stake amount. Received: {}, Minimum: {}", total_stake, MINIMUM_STAKE_AMOUNT));
+        }
+
+        let token_id = stake_token_id.ok_or_else(|| anyhow!("No valid stake token found"))?;
+        Ok((total_stake, token_id))
+    }
+
+    fn is_valid_stake_token(&self, token_id: &AlkaneId) -> bool {
+        // Check if token is from an initialized free-mint contract
+        // For now, accept tokens from block 2 (where free-mint contracts are typically spawned)
+        // This should be enhanced to check against a list of initialized free-mint contracts
+        token_id.block == 2 && token_id.tx == 1
+    }
+
     fn get_stake_input_amount(&self, context: &Context) -> Result<u128> {
         let mut total_stake = 0u128;
 
@@ -261,10 +391,25 @@ impl CouponFactory {
         let current_block = u128::from(self.height());
         let coupon_id = self.total_coupons();
 
+
+
         // Create cellpack for coupon token creation
         let cellpack = Cellpack {
-            target: coupon_template_id,
-            inputs: vec![
+            target: AlkaneId {
+                block: 6,
+                tx: coupon_template_id,
+            },
+                // PURE MASTERCHEF: Include reward_debt in position token creation (simplified inputs)
+                inputs: vec![
+                    0x0,
+                    position_id,
+                    deposit_amount,
+                    reward_debt,
+                    current_block,
+                    deposit_token_id.block,
+                    deposit_token_id.tx,
+                ],
+            };            inputs: vec![
                 0x0,           // Initialize opcode
                 coupon_id,     // Unique coupon ID
                 stake_amount,  // Stake amount used
@@ -551,6 +696,107 @@ impl CouponFactory {
         let mut response = CallResponse::forward(&context.incoming_alkanes);
         response.data = MINIMUM_STAKE_AMOUNT.to_le_bytes().to_vec();
         Ok(response)
+    }
+
+    // Helper functions for redemption logic
+
+    fn get_coupon_details(&self, coupon_id: &AlkaneId) -> Result<CouponDetails> {
+        // Call the coupon token to get its details
+        let cellpack = Cellpack {
+            target: coupon_id.clone(),
+            inputs: vec![0x31], // Get all coupon details opcode
+        };
+
+        let parcel = AlkaneTransferParcel::default();
+        let response = self.call(&cellpack, &parcel, self.fuel())?;
+
+        if response.data.len() < 16 * 7 {
+            return Err(anyhow!("Invalid coupon details response"));
+        }
+
+        // Parse the response data (7 values of 16 bytes each)
+        let mut offset = 0;
+        let coupon_id = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
+        offset += 16;
+        let stake_amount = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
+        offset += 16;
+        let base_xor = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
+        offset += 16;
+        let stake_bonus = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
+        offset += 16;
+        let final_result = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
+        offset += 16;
+        let creation_block = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
+        offset += 16;
+        let is_winner = u128::from_le_bytes(response.data[offset..offset+16].try_into()?) != 0;
+
+        Ok(CouponDetails {
+            coupon_id,
+            stake_amount,
+            base_xor: base_xor as u8,
+            stake_bonus: stake_bonus as u8,
+            final_result: final_result as u8,
+            creation_block,
+            is_winner,
+        })
+    }
+
+    fn validate_coupon_ownership(&self, context: &Context, coupon_id: &AlkaneId) -> Result<AlkaneTransfer> {
+        // Check if the coupon token is being sent by the holder
+        for transfer in &context.incoming_alkanes.0 {
+            if &transfer.id == coupon_id && transfer.value > 0 {
+                return Ok(transfer.clone());
+            }
+        }
+        
+        Err(anyhow!("Coupon token not provided for redemption"))
+    }
+
+    fn calculate_user_share(&self, user_stake: u128, total_pot: u128) -> Result<u128> {
+        if total_pot == 0 {
+            return Err(anyhow!("Total pot is zero"));
+        }
+
+        // Calculate user's share: (user_stake / total_pot) * total_pot
+        // This simplifies to user_stake, but we keep the calculation for clarity
+        let share = user_stake
+            .checked_mul(total_pot)
+            .and_then(|x| x.checked_div(total_pot))
+            .ok_or_else(|| anyhow!("Share calculation overflow"))?;
+
+        Ok(share)
+    }
+
+    fn mark_coupon_redeemed(&self, coupon_id: &AlkaneId) -> Result<()> {
+        let key = format!("/redeemed_coupons/{}_{}", coupon_id.block, coupon_id.tx).into_bytes();
+        self.store(key, vec![1u8]);
+        Ok(())
+    }
+
+    fn is_coupon_redeemed(&self, coupon_id: &AlkaneId) -> bool {
+        let key = format!("/redeemed_coupons/{}_{}", coupon_id.block, coupon_id.tx).into_bytes();
+        let bytes = self.load(key);
+        !bytes.is_empty() && bytes[0] == 1
+    }
+
+    fn get_total_pot_internal(&self) -> Result<u128> {
+        // For now, return the total of all successful stakes
+        // This should be enhanced to track the actual pot
+        let total_pot = self.successful_coupons() * MINIMUM_STAKE_AMOUNT;
+        Ok(total_pot)
+    }
+
+    fn get_block_end_time_internal(&self) -> Result<u128> {
+        // For now, set block end time to 100 blocks after creation
+        // This should be configurable
+        let current_block = u128::from(self.height());
+        Ok(current_block + 100)
+    }
+
+    fn get_pot_token_id(&self) -> Result<AlkaneId> {
+        // For now, return the same token ID as stake tokens
+        // This should be enhanced to use a specific pot token
+        Ok(AlkaneId { block: 2, tx: 1 })
     }
 }
 
