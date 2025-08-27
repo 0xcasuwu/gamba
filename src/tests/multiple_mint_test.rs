@@ -27,6 +27,7 @@ use alkanes::view;
 
 use alkanes::precompiled::free_mint_build;
 use crate::tests::std::factory_build;
+use crate::precompiled::coupon_template_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -602,7 +603,7 @@ fn test_comprehensive_factory_integration() -> Result<()> {
     }]);
     index_block(&factory_block, 6)?;
     
-    let factory_contract_id = AlkaneId { block: 2, tx: 1793 };
+    let factory_contract_id = AlkaneId { block: 4, tx: 1793 };
     println!("✅ Factory contract initialized at {:?}", factory_contract_id);
 
     // PHASE 5: Test CreateCoupon (opcode 1) with minted tokens
@@ -1071,6 +1072,280 @@ fn test_factory_getter_calls() -> Result<()> {
     println!("✅ GetMinimumStake (opcode 51) tested");
     println!("✅ GetCouponTokenTemplateId (opcode 23) tested");
     println!("✅ All getter calls completed successfully");
+
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+fn test_complete_deposit_to_coupon_flow() -> Result<()> {
+    clear();
+    println!("\n🎰 COMPLETE DEPOSIT → COUPON CREATION FLOW TEST");
+    println!("===============================================");
+
+    // PHASE 1: Deploy All Contract Templates
+    println!("\n📦 PHASE 1: Deploying All Contract Templates");
+    let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
+        [
+            free_mint_build::get_bytes(),
+            coupon_template_build::get_bytes(),
+            factory_build::get_bytes(),
+        ].into(),
+        [
+            vec![3u128, 797u128, 101u128], // Free-mint template → deploys to 4,797
+            vec![3u128, 0x601, 10u128],    // Coupon template → deploys to 4,0x601
+            vec![3u128, 0x701, 10u128],    // Factory template → deploys to 4,0x701
+        ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
+    );
+    index_block(&template_block, 0)?;
+    println!("✅ All contract templates deployed at block 0");
+
+    // PHASE 2: Initialize Free-Mint Contract
+    println!("\n🪙 PHASE 2: Initializing Free-Mint Contract");
+    let free_mint_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    6u128, 797u128, 0u128,  // Deploy to block 6, tx 797, opcode 0 (Initialize)
+                                    1000000u128,            // token_units (initial supply)
+                                    100000u128,             // value_per_mint  
+                                    1000000000u128,         // cap (high cap for testing)
+                                    0x54455354,             // name_part1 ("TEST")
+                                    0x434f494e,             // name_part2 ("COIN")
+                                    0x545354,               // symbol ("TST")
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&free_mint_block, 1)?;
+    
+    let free_mint_contract_id = AlkaneId { block: 2, tx: 1 };
+    println!("✅ Free-mint contract initialized at {:?}", free_mint_contract_id);
+
+    // PHASE 3: Mint Tokens from Free-Mint Contract
+    println!("\n💰 PHASE 3: Minting Tokens from Free-Mint Contract");
+    let mint_block_height = 5;
+    let minted_block = mint_tokens_from_free_mint_contract(&free_mint_contract_id, mint_block_height)?;
+    
+    // Verify minted tokens
+    let mint_outpoint = OutPoint {
+        txid: minted_block.txdata[0].compute_txid(),
+        vout: 0,
+    };
+    let mint_sheet = load_sheet(&RuneTable::for_protocol(AlkaneMessageContext::protocol_tag())
+        .OUTPOINT_TO_RUNES.select(&consensus_encode(&mint_outpoint)?));
+    let minted_token_id = ProtoruneRuneId { block: 2, tx: 1 };
+    let minted_amount = mint_sheet.get(&minted_token_id);
+
+    println!("🔍 Minted token ID: {:?}", minted_token_id);
+    println!("🔍 Minted amount: {}", minted_amount);
+
+    assert!(minted_amount > 0, "Expected minted amount to be greater than 0");
+    println!("✅ Tokens successfully minted and verified.");
+
+    // PHASE 4: Initialize Factory Contract
+    println!("\n🏭 PHASE 4: Initializing Factory Contract");
+    let factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    4u128, 0x701u128, 0u128,  // Deploy to block 6, tx 0x701, opcode 0 (Initialize)
+                                    144u128,                   // success_threshold
+                                    6u128,                     // coupon_token_template_id.block
+                                    0x601u128,                 // coupon_token_template_id.tx
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&factory_block, 6)?;
+    
+    let factory_contract_id = AlkaneId { block: 4, tx: 1793 };
+    println!("✅ Factory contract initialized at {:?}", factory_contract_id);
+
+    // PHASE 5: Create Coupon (Deposit Operation)
+    println!("\n🎫 PHASE 5: Creating Coupon (Deposit Operation)");
+    println!("🔍 Available tokens at mint outpoint: {}", minted_amount);
+    println!("🎯 Deposit amount: 5000");
+    
+    let deposit_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: mint_outpoint, // Use the minted tokens as input
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![
+                        ProtostoneEdict {
+                            id: minted_token_id,
+                            amount: 5000, // Deposit 5000 tokens
+                            output: 0,    // Send to factory
+                        }.into()
+                    ],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    factory_contract_id.block,
+                                    factory_contract_id.tx,
+                                    1u128, // CreateCoupon opcode
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&deposit_block, 10)?;
+    println!("✅ CreateCoupon transaction submitted at block 10");
+
+    // PHASE 6: Analyze Results
+    println!("\n🔍 PHASE 6: Analyzing Deposit Results");
+    println!("=====================================");
+    
+    // Check all vouts for trace data
+    for vout in 0..5 {
+        let deposit_outpoint = OutPoint {
+            txid: deposit_block.txdata[0].compute_txid(),
+            vout,
+        };
+        let deposit_trace_data = &view::trace(&deposit_outpoint)?;
+        let deposit_trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(deposit_trace_data)?.into();
+        let deposit_trace_guard = deposit_trace_result.0.lock().unwrap();
+        if !deposit_trace_guard.is_empty() {
+            println!("   • vout {} trace data: {:?}", vout, *deposit_trace_guard);
+            
+            // Look for ReturnContext with coupon tokens
+            for trace in deposit_trace_guard.iter() {
+                if let alkanes_support::trace::TraceEvent::ReturnContext(response) = trace {
+                    if !response.inner.alkanes.0.is_empty() {
+                        println!("   • Coupon tokens returned: {:?}", response.inner.alkanes.0);
+                        for (i, coupon_transfer) in response.inner.alkanes.0.iter().enumerate() {
+                            println!("     - Coupon {}: ID={:?}, Value={}", i, coupon_transfer.id, coupon_transfer.value);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Check balance sheet for coupon tokens
+    let deposit_outpoint = OutPoint {
+        txid: deposit_block.txdata[0].compute_txid(),
+        vout: 0,
+    };
+    let deposit_sheet = load_sheet(&RuneTable::for_protocol(AlkaneMessageContext::protocol_tag())
+        .OUTPOINT_TO_RUNES.select(&consensus_encode(&deposit_outpoint)?));
+    
+    println!("\n📊 COUPON TOKEN ANALYSIS");
+    println!("==========================");
+    for (token_id, amount) in deposit_sheet.cached.balances.iter() {
+        if token_id.block != 2 || token_id.tx != 1 { // Not the original minted token
+            println!("   • Token ID: {:?}, Amount: {}", token_id, amount);
+        }
+    }
+
+    println!("\n🎊 COMPLETE DEPOSIT → COUPON CREATION FLOW TEST SUMMARY");
+    println!("=======================================================");
+    println!("✅ All contract templates deployed successfully");
+    println!("✅ Free-mint contract initialized at {:?}", free_mint_contract_id);
+    println!("✅ Tokens successfully minted: {} tokens", minted_amount);
+    println!("✅ Factory contract initialized at {:?}", factory_contract_id);
+    println!("✅ CreateCoupon transaction submitted (opcode 1)");
+    println!("✅ Trace analysis completed");
+    println!("✅ Test completed successfully");
 
     Ok(())
 }

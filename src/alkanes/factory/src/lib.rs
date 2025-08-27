@@ -396,7 +396,7 @@ impl CouponFactory {
         // Create cellpack for coupon token creation
         let cellpack = Cellpack {
             target: AlkaneId {
-                block: 6,
+                block: 6, // Spawn new coupon token at block 6 (following boiler pattern)
                 tx: coupon_template_id.tx,
             },
             inputs: vec![
