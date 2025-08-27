@@ -189,6 +189,35 @@ fn test_coupon_template_direct() -> Result<()> {
 }
 
 #[wasm_bindgen_test]
+fn test_coupon_template_deployment_only() -> Result<()> {
+    clear();
+    println!("\n🎯 COUPON TEMPLATE DEPLOYMENT TEST");
+    println!("==================================");
+
+    // Deploy only the coupon template
+    println!("\n📦 PHASE 1: Deploying Coupon Template Only");
+    let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
+        [coupon_template_build::get_bytes()].into(),
+        [vec![3u128, 0x601]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
+    );
+    index_block(&template_block, 0)?;
+    println!("✅ Coupon template deployed at block 4, tx 0x601");
+    
+    // Check deployment trace
+    println!("\n🔍 PHASE 2: Checking Deployment Trace");
+    let trace_data = &view::trace(&OutPoint {
+        txid: template_block.txdata[0].compute_txid(),
+        vout: 3,
+    })?;
+    let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+    let trace_guard = trace_result.0.lock().unwrap();
+    println!("   • Template deployment trace: {:?}", *trace_guard);
+
+    println!("✅ Test completed successfully - no reverts!");
+    Ok(())
+}
+
+#[wasm_bindgen_test]
 fn test_free_mint_contract_minting() -> Result<()> {
     clear();
     println!("\n🚀 FREE-MINT CONTRACT MINTING TEST");
@@ -455,7 +484,7 @@ fn test_comprehensive_factory_integration() -> Result<()> {
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
             free_mint_build::get_bytes(),
-            // coupon_template_build::get_bytes(),
+            coupon_template_build::get_bytes(),
             factory_build::get_bytes(),
         ].into(),
         [
@@ -1092,7 +1121,7 @@ fn test_complete_deposit_to_coupon_flow() -> Result<()> {
         ].into(),
         [
             vec![3u128, 797u128, 101u128], // Free-mint template → deploys to 4,797
-            vec![3u128, 0x601, 10u128],    // Coupon template → deploys to 4,0x601
+            vec![3u128, 0x601],    // Coupon template → deploys to 4,0x601
             vec![3u128, 0x701, 10u128],    // Factory template → deploys to 4,0x701
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );

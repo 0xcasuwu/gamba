@@ -37,7 +37,13 @@ struct CouponDetails {
     is_winner: bool,
 }
 
-impl AlkaneResponder for CouponFactory {}
+impl AlkaneResponder for CouponFactory {
+    fn handle_message(&self, context: &Context) -> Result<CallResponse> {
+        println!("🔍 DEBUG: Factory received message with opcode: {}", context.inputs[0]);
+        println!("🔍 DEBUG: Factory inputs: {:?}", context.inputs);
+        self.dispatch_message(context)
+    }
+}
 
 #[derive(MessageDispatch)]
 enum CouponFactoryMessage {
@@ -125,6 +131,8 @@ impl CouponFactory {
         let _context = self.context()?;
         let response = CallResponse::default();
 
+        println!("🔍 DEBUG: Factory initialize called with success_threshold: {}, coupon_token_template_id: {:?}", success_threshold, coupon_token_template_id);
+
         self.observe_initialization()?;
 
         // Store all parameters
@@ -142,14 +150,19 @@ impl CouponFactory {
         let context = self.context()?;
         let mut response = CallResponse::default();
 
+        println!("🔍 DEBUG: Factory create_coupon called");
+        
         // Validate incoming tokens following boiler pattern
         let (stake_amount, stake_token_id) = self.validate_incoming_tokens(&context)?;
+        println!("🔍 DEBUG: Token validation passed - stake_amount: {}, stake_token_id: {:?}", stake_amount, stake_token_id);
         
         // Calculate base XOR from blockchain data
         let base_xor = self.calculate_base_xor_internal()?;
+        println!("🔍 DEBUG: Base XOR calculated: {}", base_xor);
 
         let stake_bonus = self.calculate_stake_bonus_internal(stake_amount)?;
         let final_result = base_xor.saturating_add(stake_bonus);
+        println!("🔍 DEBUG: Stake bonus: {}, Final result: {}", stake_bonus, final_result);
 
         // Check success threshold
         let success_threshold = self.success_threshold();
@@ -390,28 +403,34 @@ impl CouponFactory {
         let coupon_template_id = self.coupon_token_template_id()?;
         let current_block = u128::from(self.height());
         let coupon_id = self.total_coupons();
+        
+        // Debug: Print template ID being used
+        println!("🔍 DEBUG: Factory calling coupon template at block: 6, tx: {}", coupon_template_id);
 
 
 
         // Create cellpack for coupon token creation
         let cellpack = Cellpack {
             target: AlkaneId {
-                block: 6, // Spawn new coupon token at block 6 (following boiler pattern)
-                tx: coupon_template_id.tx,
+                block: 6, // Call the coupon template at block 6 to spawn new instance at block 2
+                tx: coupon_template_id,
             },
             inputs: vec![
-                0x0,           // Initialize opcode
-                coupon_id,     // Unique coupon ID
-                stake_amount,  // Stake amount used
-                base_xor as u128, // Base XOR result
-                stake_bonus as u128, // Stake bonus applied
-                final_result as u128, // Final XOR result
-                if is_winner { 1u128 } else { 0u128 }, // Win/lose flag
-                current_block, // Block of creation
-                context.myself.block, // Factory block ID
-                context.myself.tx,    // Factory tx ID
+                0u128, // Initialize opcode
+                coupon_id,
+                stake_amount,
+                base_xor as u128,
+                stake_bonus as u128,
+                final_result as u128,
+                if is_winner { 1u128 } else { 0u128 },
+                current_block,
+                context.myself.block,
+                context.myself.tx,
             ],
         };
+        
+        println!("🔍 DEBUG: Factory calling coupon template at block: 6, tx: {} with {} inputs", coupon_template_id, cellpack.inputs.len());
+        println!("🔍 DEBUG: Inputs: {:?}", cellpack.inputs);
 
         // No tokens sent to coupon (it's created with gambling state only)
         let coupon_parcel = AlkaneTransferParcel::default();
@@ -427,29 +446,21 @@ impl CouponFactory {
 
     // Storage operations following boiler patterns
 
-    fn coupon_token_template_id(&self) -> Result<AlkaneId> {
+    fn coupon_token_template_id(&self) -> Result<u128> {
         let bytes = self.load("/coupon_token_template_id".as_bytes().to_vec());
 
-        if bytes.len() < 32 {
+        if bytes.len() < 16 {
             return Err(anyhow!("Coupon token template ID not set"));
         }
 
-        Ok(AlkaneId {
-            block: u128::from_le_bytes(bytes[0..16].try_into().map_err(|_| {
-                anyhow!("Failed to parse coupon template block ID from storage")
-            })?),
-            tx: u128::from_le_bytes(bytes[16..32].try_into().map_err(|_| {
-                anyhow!("Failed to parse coupon template tx ID from storage")
-            })?),
-        })
+        Ok(u128::from_le_bytes(bytes[0..16].try_into().map_err(|_| {
+            anyhow!("Failed to parse coupon template ID from storage")
+        })?))
     }
 
     fn set_coupon_token_template_id(&self, id: &AlkaneId) -> Result<()> {
-        let mut bytes = Vec::with_capacity(32);
-        bytes.extend_from_slice(&id.block.to_le_bytes());
-        bytes.extend_from_slice(&id.tx.to_le_bytes());
-
-        self.store("/coupon_token_template_id".as_bytes().to_vec(), bytes);
+        // Store only the tx part as the template ID (following boiler pattern)
+        self.store("/coupon_token_template_id".as_bytes().to_vec(), id.tx.to_le_bytes().to_vec());
         Ok(())
     }
 

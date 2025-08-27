@@ -198,27 +198,34 @@ impl CouponToken {
         factory_tx: u128,
     ) -> Result<CallResponse> {
         let context = self.context()?;
-        let mut response = CallResponse::default();
+        let mut response = CallResponse::forward(&context.incoming_alkanes);
 
         self.observe_initialization()?;
 
-        // Minimal: Set basic name and symbol only
+        // Set basic name and symbol
         let name_string = format!("Coupon #{}", coupon_id);
         let symbol_string = format!("CPN-{}", coupon_id);
         
         name_pointer().set(Arc::new(name_string.as_bytes().to_vec()));
         symbol_pointer().set(Arc::new(symbol_string.as_bytes().to_vec()));
 
-        // Minimal: Store only essential details
+        // Store all coupon details
         self.set_factory_id(&context.caller);
         self.set_coupon_id(coupon_id);
         self.set_stake_amount(stake_amount);
+        self.set_base_xor(base_xor as u8);
+        self.set_stake_bonus(stake_bonus as u8);
+        self.set_final_result(final_result as u8);
+        self.set_is_winner(is_winner != 0);
+        self.set_creation_block(creation_block);
 
         // Return exactly 1 coupon token
+        println!("🔍 DEBUG: Coupon template returning token with id: {:?}, value: 1", context.myself);
         response.alkanes.0.push(AlkaneTransfer {
             id: context.myself.clone(),
             value: 1u128,
         });
+        println!("🔍 DEBUG: Response alkanes count: {}", response.alkanes.0.len());
 
         Ok(response)
     }
@@ -550,38 +557,7 @@ impl CouponToken {
     }
 }
 
-impl CouponToken {
-    fn handle(&self, message: CouponTokenMessage) -> Result<CallResponse> {
-        match message {
-            CouponTokenMessage::Initialize {
-                coupon_id,
-                stake_amount,
-                base_xor,
-                stake_bonus,
-                final_result,
-                is_winner,
-                creation_block,
-                factory_block,
-                factory_tx,
-            } => self.initialize(coupon_id, stake_amount, base_xor, stake_bonus, final_result, is_winner, creation_block, factory_block, factory_tx),
-            CouponTokenMessage::GetCouponId => self.get_coupon_id(),
-            CouponTokenMessage::GetStakeAmount => self.get_stake_amount(),
-            CouponTokenMessage::GetBaseXor => self.get_base_xor(),
-            CouponTokenMessage::GetStakeBonus => self.get_stake_bonus(),
-            CouponTokenMessage::GetFinalResult => self.get_final_result(),
-            CouponTokenMessage::GetCreationBlock => self.get_creation_block(),
-            CouponTokenMessage::GetFactoryId => self.get_factory_id(),
-            CouponTokenMessage::GetAllCouponDetails => self.get_all_coupon_details(),
-            CouponTokenMessage::GetCouponType => self.get_coupon_type(),
-            CouponTokenMessage::IsWinner => self.is_winner_response(),
-            CouponTokenMessage::GetName => self.get_name(),
-            CouponTokenMessage::GetSymbol => self.get_symbol(),
-            CouponTokenMessage::GetData => self.get_data(),
-            CouponTokenMessage::GetContentType => self.get_content_type(),
-            CouponTokenMessage::GetAttributes => self.get_attributes(),
-        }
-    }
-}
+
 
 declare_alkane! {
   impl AlkaneResponder for CouponToken {
