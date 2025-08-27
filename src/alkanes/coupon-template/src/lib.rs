@@ -7,6 +7,7 @@ use alkanes_runtime::{
 };
 
 use alkanes_support::{
+    context::Context,
     id::AlkaneId,
     parcel::AlkaneTransfer,
     response::CallResponse,
@@ -80,7 +81,13 @@ fn string_to_u128(s: &str) -> u128 {
 #[derive(Default)]
 pub struct CouponToken(());
 
-impl AlkaneResponder for CouponToken {}
+impl AlkaneResponder for CouponToken {
+    fn handle_message(&self, context: &Context) -> Result<CallResponse> {
+        println!("🚀 COUPON TEMPLATE: handle_message called with opcode: {}", context.inputs[0]);
+        println!("🚀 COUPON TEMPLATE: All inputs: {:?}", context.inputs);
+        self.dispatch_message(context)
+    }
+}
 
 #[derive(MessageDispatch)]
 enum CouponTokenMessage {
@@ -201,6 +208,9 @@ impl CouponToken {
         let context = self.context()?;
         let mut response = CallResponse::default();
 
+        println!("🚀 COUPON TEMPLATE: Initialize called with coupon_id: {}, stake_amount: {}", coupon_id, stake_amount);
+        println!("🚀 COUPON TEMPLATE: Context myself: {:?}", context.myself);
+
         self.observe_initialization()?;
 
         // Set basic name and symbol
@@ -221,12 +231,13 @@ impl CouponToken {
         self.set_creation_block(creation_block);
 
         // Return exactly 1 coupon token
-        println!("🔍 DEBUG: Coupon template returning token with id: {:?}, value: 1", context.myself);
+        println!("🚀 COUPON TEMPLATE: About to return token with id: {:?}, value: 1", context.myself);
         response.alkanes.0.push(AlkaneTransfer {
             id: context.myself.clone(),
             value: 1u128,
         });
-        println!("🔍 DEBUG: Response alkanes count: {}", response.alkanes.0.len());
+        println!("🚀 COUPON TEMPLATE: Response alkanes count after push: {}", response.alkanes.0.len());
+        println!("🚀 COUPON TEMPLATE: Response alkanes: {:?}", response.alkanes.0);
 
         Ok(response)
     }
