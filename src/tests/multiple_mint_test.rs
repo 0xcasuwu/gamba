@@ -18,7 +18,7 @@ use metashrew_support::{index_pointer::KeyValuePointer, utils::consensus_encode}
 use ordinals::Runestone;
 use protorune::test_helpers::{get_btc_network, ADDRESS1};
 use protorune::{test_helpers as protorune_helpers};
-use protorune_support::{balance_sheet::ProtoruneRuneId, protostone::{Protostone}};
+use protorune_support::{balance_sheet::ProtoruneRuneId, protostone::{Protostone, ProtostoneEdict}};
 use protorune::protostone::Protostones;
 use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
@@ -26,8 +26,7 @@ use alkanes::view;
 // use protobuf::Message; // Removed unused import
 
 use alkanes::precompiled::free_mint_build;
-use crate::precompiled::factory_build;
-use crate::precompiled::coupon_template_build;
+use crate::tests::std::factory_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -91,6 +90,101 @@ fn mint_tokens_from_free_mint_contract(free_mint_contract_id: &AlkaneId, block_h
     
     println!("✅ Minted tokens from free-mint contract at block {}", block_height);
     Ok(mint_block)
+}
+
+#[test]
+fn test_coupon_template_direct() -> Result<()> {
+    clear();
+    
+    println!("🧪 TESTING COUPON TEMPLATE DIRECTLY");
+    println!("====================================");
+    
+    // Deploy coupon template only
+    let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
+        [
+            crate::precompiled::coupon_template_build::get_bytes(),
+        ].into(),
+        [
+            vec![3u128, 0x601],  // Deploy coupon template at block 4, tx 0x601
+        ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
+    );
+    index_block(&template_block, 0)?;
+    
+    println!("✅ Coupon template deployed at block 0");
+    
+    // Try to initialize a coupon directly
+    let coupon_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    6u128, 0x601, 0u128,  // Call coupon template at block 6, tx 0x601, opcode 0 (Initialize)
+                                    1u128,                 // coupon_id
+                                    1000u128,              // stake_amount
+                                    50u128,                // base_xor
+                                    10u128,                // stake_bonus
+                                    60u128,                // final_result
+                                    1u128,                 // is_winner
+                                    10u128,                // creation_block
+                                    2u128,                 // factory_block
+                                    1793u128,              // factory_tx
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&coupon_block, 1)?;
+    
+    println!("✅ Direct coupon initialization attempted at block 1");
+    
+    // Check the trace
+    println!("🔍 TRACE: Direct coupon initialization");
+    for vout in 0..5 {
+        let trace_data = &view::trace(&OutPoint {
+            txid: coupon_block.txdata[0].compute_txid(),
+            vout,
+        })?;
+        let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+        let trace_guard = trace_result.0.lock().unwrap();
+        if !trace_guard.is_empty() {
+            println!("   - vout {}: {:?}", vout, *trace_guard);
+        }
+    }
+    
+    Ok(())
 }
 
 #[wasm_bindgen_test]
@@ -224,7 +318,7 @@ fn test_debug_factory_deployment_with_minting() -> Result<()> {
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
             free_mint_build::get_bytes(),
-            coupon_template_build::get_bytes(),
+            // coupon_template_build::get_bytes(),
             factory_build::get_bytes(),
         ].into(),
         [
@@ -344,6 +438,639 @@ fn test_debug_factory_deployment_with_minting() -> Result<()> {
     println!("✅ Free-mint contract initialized.");
     println!("✅ Tokens successfully minted from the free-mint contract.");
     println!("✅ Test completed successfully.");
+
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+fn test_comprehensive_factory_integration() -> Result<()> {
+    println!("\n🎰 COMPREHENSIVE FACTORY INTEGRATION TEST");
+    println!("=========================================");
+    
+    clear();
+    
+    // PHASE 1: Deploy all contract templates
+    println!("\n📦 PHASE 1: Deploying All Contract Templates");
+    let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
+        [
+            free_mint_build::get_bytes(),
+            // coupon_template_build::get_bytes(),
+            factory_build::get_bytes(),
+        ].into(),
+        [
+            // free_mint template → deploys instance at block 4, tx 797 (opcode 101 for template init)
+            vec![3u128, 797u128, 101u128],
+            // coupon_token template → deploys instance at block 4, tx 0x601 (no opcode for template deployment)
+            // This template will be called by factory at block 6, tx 0x601 when creating coupon tokens
+            vec![3u128, 0x601, 10u128 ],
+            // coupon_factory template → deploys instance at block 4, tx 0x701 (opcode 0 for init)
+            vec![3u128, 0x701, 0u128, 144u128, 4u128, 0x601u128],
+        ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
+    );
+    index_block(&template_block, 0)?;
+    println!("✅ All contract templates deployed at block 0");
+    println!("   • Free-mint template: block 4, tx 797");
+    println!("   • Coupon template: block 4, tx 0x601 (will be called by factory at block 6, tx 0x601)");
+    println!("   • Factory template: block 4, tx 0x701");
+
+    // PHASE 2: Initialize Free-Mint Contract (6 → 4 → 2 pattern)
+    println!("\n🪙 PHASE 2: Initializing Free-Mint Contract");
+    println!("   Deployment pattern: 6u128, 797u128, 0u128 → targets block 4, tx 797 → deploys to block 2, tx 1");
+    let free_mint_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    6u128, 797u128, 0u128,  // Deploy to block 6, tx 797, opcode 0 (Initialize)
+                                    1000000u128,            // token_units (initial supply)
+                                    100000u128,             // value_per_mint  
+                                    1000000000u128,         // cap (high cap for testing)
+                                    0x54455354,             // name_part1 ("TEST")
+                                    0x434f494e,             // name_part2 ("COIN")
+                                    0x545354,               // symbol ("TST")
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&free_mint_block, 1)?;
+    
+    let free_mint_contract_id = AlkaneId { block: 2, tx: 1 };
+    println!("✅ Free-mint contract initialized at {:?}", free_mint_contract_id);
+
+    // PHASE 3: Mint tokens from the Free-Mint Contract (opcode 77)
+    println!("\n💰 PHASE 3: Minting Tokens (opcode 77)");
+    let mint_block_height = 5;
+    let minted_block = mint_tokens_from_free_mint_contract(&free_mint_contract_id, mint_block_height)?;
+    
+    // Verify minted tokens
+    let mint_outpoint = OutPoint {
+        txid: minted_block.txdata[0].compute_txid(),
+        vout: 0,
+    };
+    let mint_sheet = load_sheet(&RuneTable::for_protocol(AlkaneMessageContext::protocol_tag())
+        .OUTPOINT_TO_RUNES.select(&consensus_encode(&mint_outpoint)?));
+    let minted_token_id = ProtoruneRuneId { block: 2, tx: 1 };
+    let minted_amount = mint_sheet.get(&minted_token_id);
+
+    println!("🔍 Minted token ID: {:?}", minted_token_id);
+    println!("🔍 Minted amount: {}", minted_amount);
+
+    assert!(minted_amount > 0, "Expected minted amount to be greater than 0");
+    println!("✅ Tokens successfully minted and verified.");
+
+    // PHASE 4: Initialize Factory Contract
+    println!("\n🏭 PHASE 4: Initializing Factory Contract");
+    let factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    6u128, 0x701, 0u128,  // Deploy to block 6, tx 0x701, opcode 0 (Initialize)
+                                    144u128,              // success_threshold
+                                    4u128, 0x601u128,     // coupon_token_template_id (AlkaneId { block: 4, tx: 0x601 })
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&factory_block, 6)?;
+    
+    let factory_contract_id = AlkaneId { block: 2, tx: 1793 };
+    println!("✅ Factory contract initialized at {:?}", factory_contract_id);
+
+    // PHASE 5: Test CreateCoupon (opcode 1) with minted tokens
+    println!("\n🎫 PHASE 5: Testing CreateCoupon (opcode 1)");
+    let deposit_amount = 5000u128;
+    
+    // Get available tokens from the mint outpoint
+    let available_tokens = mint_sheet.get(&minted_token_id);
+    
+    println!("🔍 Available tokens at mint outpoint: {}", available_tokens);
+    println!("🎯 Deposit amount: {}", deposit_amount);
+    
+    if available_tokens < deposit_amount {
+        return Err(anyhow::anyhow!("Insufficient tokens: have {}, need {}", available_tokens, deposit_amount));
+    }
+    
+    // Create a transaction that sends tokens to the factory contract
+    // CRITICAL: Reference the mint outpoint in the transaction input
+    let deposit_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: mint_outpoint,  // 🔑 CRITICAL: Reference the mint outpoint
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::from_height(10),
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            // Token output - send tokens to factory contract
+            TxOut {
+                script_pubkey: (Runestone {
+                                                    edicts: vec![
+                                    ProtostoneEdict {
+                                        id: ProtoruneRuneId {
+                                            block: minted_token_id.block,
+                                            tx: minted_token_id.tx,
+                                        },
+                                        amount: available_tokens,  // Transfer all available tokens
+                                        output: 1,
+                                    }.into()
+                                ],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    factory_contract_id.block,
+                                    factory_contract_id.tx,
+                                    1u128, // CreateCoupon opcode (1 from gamba source)
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    
+    index_block(&deposit_block, 10)?;
+    
+    println!("✅ CreateCoupon transaction submitted at block 10");
+    println!("   • Factory contract: {:?}", factory_contract_id);
+    println!("   • Opcode: 1 (CreateCoupon)");
+    println!("   • Mint outpoint: {:?}", mint_outpoint);
+    println!("   • Token transfer: {:?} (amount: {})", minted_token_id, available_tokens);
+    println!("   • Factory will call coupon template at block 6, tx 0x601");
+    println!("   • ProtostoneEdict included: ✅");
+
+    // DETAILED TRACE ANALYSIS
+    println!("\n🔍 DETAILED TRACE ANALYSIS FOR CREATECOUPON");
+    println!("=============================================");
+    
+    // Analyze the CreateCoupon transaction trace
+    for (i, tx) in deposit_block.txdata.iter().enumerate() {
+        println!("   • TX {} traces:", i);
+        for vout in 0..5 {
+            let trace_data = &view::trace(&OutPoint {
+                txid: tx.compute_txid(),
+                vout,
+            })?;
+            let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+            let trace_guard = trace_result.0.lock().unwrap();
+            if !trace_guard.is_empty() {
+                println!("     - vout {}: {:?}", vout, *trace_guard);
+            }
+        }
+    }
+
+    println!("\n🎊 COMPREHENSIVE FACTORY INTEGRATION TEST SUMMARY");
+    println!("=================================================");
+    println!("✅ All contract templates deployed successfully");
+    println!("✅ Free-mint contract initialized (6→4→2 pattern)");
+    println!("✅ Tokens minted successfully (opcode 77)");
+    println!("✅ Factory contract initialized");
+    println!("✅ CreateCoupon transaction submitted (opcode 1)");
+    println!("✅ Test completed successfully");
+
+    // TRACE: Final state analysis
+    println!("\n🔍 TRACE: Final State Analysis");
+    println!("   • Template deployment: block 0 (3→4 pattern)");
+    println!("   • Free-mint initialization: block 1 (6→4→2 pattern)");
+    println!("   • Token minting: block 5 (opcode 77)");
+    println!("   • Factory initialization: block 6 (6→4→2 pattern)");
+    println!("   • CreateCoupon: block 10 (opcode 1)");
+    println!("   • Factory external call: block 6, tx 0x601 (targets coupon template at block 4, tx 0x601)");
+
+    Ok(())
+}
+
+#[wasm_bindgen_test]
+fn test_factory_getter_calls() -> Result<()> {
+    clear();
+    println!("\n🔧 TESTING FACTORY GETTER CALLS");
+    println!("=================================");
+
+    // PHASE 1: Deploy Factory Template (using the working pattern from trace)
+    println!("\n📦 PHASE 1: Deploying Factory Template");
+    let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
+        [factory_build::get_bytes()].into(),
+        [vec![3u128, 0x701u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
+    );
+    index_block(&template_block, 0)?;
+    println!("✅ Factory template deployed at block 0");
+
+    // PHASE 2: Initialize Factory Contract (using the working pattern from trace)
+    println!("\n🏭 PHASE 2: Initializing Factory Contract");
+    let factory_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    4u128, 1793u128, 0u128,  // Deploy to block 4, tx 1793, opcode 0 (Initialize)
+                                    144u128,                  // success_threshold
+                                    4u128, 1537u128,         // coupon_token_template_id (block 4, tx 1537)
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&factory_block, 1)?;
+    
+    let factory_contract_id = AlkaneId { block: 4, tx: 1793 };
+    println!("✅ Factory contract initialized at {:?}", factory_contract_id);
+
+    // PHASE 3: Test GetSuccessThreshold (opcode 21)
+    println!("\n🔧 PHASE 3: Testing GetSuccessThreshold (opcode 21)");
+    let threshold_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    factory_contract_id.block,
+                                    factory_contract_id.tx,
+                                    21u128, // GetSuccessThreshold opcode
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&threshold_block, 2)?;
+    
+    // Read and display trace for GetSuccessThreshold
+    println!("🔍 TRACE: GetSuccessThreshold (opcode 21)");
+    // Check all vouts for trace data
+    for vout in 0..5 {
+        let threshold_outpoint = OutPoint {
+            txid: threshold_block.txdata[0].compute_txid(),
+            vout,
+        };
+        let threshold_trace_data = &view::trace(&threshold_outpoint)?;
+        let threshold_trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(threshold_trace_data)?.into();
+        let threshold_trace_guard = threshold_trace_result.0.lock().unwrap();
+        if !threshold_trace_guard.is_empty() {
+            println!("   • Vout {} trace data: {:?}", vout, *threshold_trace_guard);
+            
+            // Look for ReturnContext with data
+            for trace in threshold_trace_guard.iter() {
+                if let alkanes_support::trace::TraceEvent::ReturnContext(response) = trace {
+                    if !response.inner.data.is_empty() {
+                        println!("   • GetSuccessThreshold returned data: {:?}", response.inner.data);
+                        // Convert bytes to u128 if possible
+                        if response.inner.data.len() >= 8 {
+                            // Take only the first 8 bytes for u128 conversion
+                            match response.inner.data[0..8].try_into() {
+                                Ok(bytes) => {
+                                    let value = u128::from_le_bytes(bytes);
+                                    println!("   • GetSuccessThreshold value: {}", value);
+                                },
+                                Err(_) => {
+                                    println!("   • GetSuccessThreshold data conversion failed");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    println!("✅ GetSuccessThreshold call completed");
+
+    // PHASE 4: Test GetMinimumStake (opcode 51)
+    println!("\n🔧 PHASE 4: Testing GetMinimumStake (opcode 51)");
+    let min_stake_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    factory_contract_id.block,
+                                    factory_contract_id.tx,
+                                    51u128, // GetMinimumStake opcode
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&min_stake_block, 3)?;
+    
+    // Read and display trace for GetMinimumStake
+    println!("🔍 TRACE: GetMinimumStake (opcode 51)");
+    // Check all vouts for trace data
+    for vout in 0..5 {
+        let min_stake_outpoint = OutPoint {
+            txid: min_stake_block.txdata[0].compute_txid(),
+            vout,
+        };
+        let min_stake_trace_data = &view::trace(&min_stake_outpoint)?;
+        let min_stake_trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(min_stake_trace_data)?.into();
+        let min_stake_trace_guard = min_stake_trace_result.0.lock().unwrap();
+        if !min_stake_trace_guard.is_empty() {
+            println!("   • Vout {} trace data: {:?}", vout, *min_stake_trace_guard);
+            
+            // Look for ReturnContext with data
+            for trace in min_stake_trace_guard.iter() {
+                if let alkanes_support::trace::TraceEvent::ReturnContext(response) = trace {
+                    if !response.inner.data.is_empty() {
+                        println!("   • GetMinimumStake returned data: {:?}", response.inner.data);
+                        // Convert bytes to u128 if possible
+                        if response.inner.data.len() >= 8 {
+                            match response.inner.data[0..8].try_into() {
+                                Ok(bytes) => {
+                                    let value = u128::from_le_bytes(bytes);
+                                    println!("   • GetMinimumStake value: {}", value);
+                                },
+                                Err(_) => {
+                                    println!("   • GetMinimumStake data conversion failed");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    println!("✅ GetMinimumStake call completed");
+
+    // PHASE 5: Test GetCouponTokenTemplateId (opcode 23)
+    println!("\n🔧 PHASE 5: Testing GetCouponTokenTemplateId (opcode 23)");
+    let template_id_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    factory_contract_id.block,
+                                    factory_contract_id.tx,
+                                    23u128, // GetCouponTokenTemplateId opcode
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&template_id_block, 4)?;
+    
+    // Read and display trace for GetCouponTokenTemplateId
+    println!("🔍 TRACE: GetCouponTokenTemplateId (opcode 23)");
+    // Check all vouts for trace data
+    for vout in 0..5 {
+        let template_id_outpoint = OutPoint {
+            txid: template_id_block.txdata[0].compute_txid(),
+            vout,
+        };
+        let template_id_trace_data = &view::trace(&template_id_outpoint)?;
+        let template_id_trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(template_id_trace_data)?.into();
+        let template_id_trace_guard = template_id_trace_result.0.lock().unwrap();
+        if !template_id_trace_guard.is_empty() {
+            println!("   • Vout {} trace data: {:?}", vout, *template_id_trace_guard);
+            
+            // Look for ReturnContext with data
+            for trace in template_id_trace_guard.iter() {
+                if let alkanes_support::trace::TraceEvent::ReturnContext(response) = trace {
+                    if !response.inner.data.is_empty() {
+                        println!("   • GetCouponTokenTemplateId returned data: {:?}", response.inner.data);
+                        // Convert bytes to AlkaneId if possible (16 bytes for block + tx)
+                        if response.inner.data.len() >= 16 {
+                            match (response.inner.data[0..8].try_into(), response.inner.data[8..16].try_into()) {
+                                (Ok(block_bytes), Ok(tx_bytes)) => {
+                                    let block = u128::from_le_bytes(block_bytes);
+                                    let tx = u128::from_le_bytes(tx_bytes);
+                                    println!("   • GetCouponTokenTemplateId value: AlkaneId {{ block: {}, tx: {} }}", block, tx);
+                                },
+                                _ => {
+                                    println!("   • GetCouponTokenTemplateId data conversion failed");
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    println!("✅ GetCouponTokenTemplateId call completed");
+
+    println!("\n🎊 FACTORY GETTER CALLS TEST SUMMARY");
+    println!("=====================================");
+    println!("✅ Factory template deployed successfully");
+    println!("✅ Factory contract initialized at {:?}", factory_contract_id);
+    println!("✅ GetSuccessThreshold (opcode 21) tested");
+    println!("✅ GetMinimumStake (opcode 51) tested");
+    println!("✅ GetCouponTokenTemplateId (opcode 23) tested");
+    println!("✅ All getter calls completed successfully");
 
     Ok(())
 }

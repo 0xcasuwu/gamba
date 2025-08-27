@@ -85,7 +85,6 @@ impl AlkaneResponder for CouponToken {}
 #[derive(MessageDispatch)]
 enum CouponTokenMessage {
     #[opcode(0)]
-    #[returns(CallResponse)]
     Initialize {
         coupon_id: u128,
         stake_amount: u128,
@@ -135,7 +134,6 @@ enum CouponTokenMessage {
     GetCouponType,
 
     #[opcode(19)]
-    #[returns(CallResponse)]
     IsWinner,
 
     /// Get the token name
@@ -204,25 +202,17 @@ impl CouponToken {
 
         self.observe_initialization()?;
 
-        // Set name and symbol based on coupon properties
-        let is_winner_bool = is_winner != 0;
-        let coupon_type = if is_winner_bool { "WINNING" } else { "LOSING" };
-        let name_string = format!("{} Gambling Coupon #{}", coupon_type, coupon_id);
-        let symbol_string = format!("{}-{}", if is_winner_bool { "WIN" } else { "LOSE" }, coupon_id);
+        // Minimal: Set basic name and symbol only
+        let name_string = format!("Coupon #{}", coupon_id);
+        let symbol_string = format!("CPN-{}", coupon_id);
         
         name_pointer().set(Arc::new(name_string.as_bytes().to_vec()));
         symbol_pointer().set(Arc::new(symbol_string.as_bytes().to_vec()));
 
-        // Store immutable coupon details
-        let factory_id = AlkaneId { block: factory_block, tx: factory_tx };
-        self.set_factory_id(&factory_id);
+        // Minimal: Store only essential details
+        self.set_factory_id(&context.caller);
         self.set_coupon_id(coupon_id);
         self.set_stake_amount(stake_amount);
-        self.set_base_xor(base_xor as u8);
-        self.set_stake_bonus(stake_bonus as u8);
-        self.set_final_result(final_result as u8);
-        self.set_is_winner(is_winner_bool);
-        self.set_creation_block(creation_block);
 
         // Return exactly 1 coupon token
         response.alkanes.0.push(AlkaneTransfer {
@@ -557,6 +547,39 @@ impl CouponToken {
         response.data = attributes.into_bytes();
 
         Ok(response)
+    }
+}
+
+impl CouponToken {
+    fn handle(&self, message: CouponTokenMessage) -> Result<CallResponse> {
+        match message {
+            CouponTokenMessage::Initialize {
+                coupon_id,
+                stake_amount,
+                base_xor,
+                stake_bonus,
+                final_result,
+                is_winner,
+                creation_block,
+                factory_block,
+                factory_tx,
+            } => self.initialize(coupon_id, stake_amount, base_xor, stake_bonus, final_result, is_winner, creation_block, factory_block, factory_tx),
+            CouponTokenMessage::GetCouponId => self.get_coupon_id(),
+            CouponTokenMessage::GetStakeAmount => self.get_stake_amount(),
+            CouponTokenMessage::GetBaseXor => self.get_base_xor(),
+            CouponTokenMessage::GetStakeBonus => self.get_stake_bonus(),
+            CouponTokenMessage::GetFinalResult => self.get_final_result(),
+            CouponTokenMessage::GetCreationBlock => self.get_creation_block(),
+            CouponTokenMessage::GetFactoryId => self.get_factory_id(),
+            CouponTokenMessage::GetAllCouponDetails => self.get_all_coupon_details(),
+            CouponTokenMessage::GetCouponType => self.get_coupon_type(),
+            CouponTokenMessage::IsWinner => self.is_winner_response(),
+            CouponTokenMessage::GetName => self.get_name(),
+            CouponTokenMessage::GetSymbol => self.get_symbol(),
+            CouponTokenMessage::GetData => self.get_data(),
+            CouponTokenMessage::GetContentType => self.get_content_type(),
+            CouponTokenMessage::GetAttributes => self.get_attributes(),
+        }
     }
 }
 

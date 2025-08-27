@@ -397,19 +397,9 @@ impl CouponFactory {
         let cellpack = Cellpack {
             target: AlkaneId {
                 block: 6,
-                tx: coupon_template_id,
+                tx: coupon_template_id.tx,
             },
-                // PURE MASTERCHEF: Include reward_debt in position token creation (simplified inputs)
-                inputs: vec![
-                    0x0,
-                    position_id,
-                    deposit_amount,
-                    reward_debt,
-                    current_block,
-                    deposit_token_id.block,
-                    deposit_token_id.tx,
-                ],
-            };            inputs: vec![
+            inputs: vec![
                 0x0,           // Initialize opcode
                 coupon_id,     // Unique coupon ID
                 stake_amount,  // Stake amount used

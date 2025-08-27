@@ -30,6 +30,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "alkane-factory"
+version = "0.1.0"
+dependencies = [
+ "alkanes-runtime",
+ "alkanes-support",
+ "anyhow",
+ "bitcoin 0.32.6",
+ "hex",
+ "metashrew-support",
+]
+
+[[package]]
 name = "alkanes"
 version = "0.5.2"
 source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
