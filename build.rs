@@ -93,7 +93,7 @@ fn main() {
             }
             
             // Only include actual contract directories
-            if name == "factory" {
+            if name == "factory" || name == "coupon-template" {
                 Some(name)
             } else {
                 None

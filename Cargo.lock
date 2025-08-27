@@ -30,6 +30,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "alkane-coupon-template"
+version = "0.1.0"
+dependencies = [
+ "alkanes-runtime",
+ "alkanes-support",
+ "anyhow",
+ "metashrew-support",
+]
+
+[[package]]
 name = "alkane-factory"
 version = "0.1.0"
 dependencies = [
