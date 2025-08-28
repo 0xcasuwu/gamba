@@ -22,8 +22,8 @@ use protorune::protostone::Protostones;
 // use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
 
-use crate::alkanes::precompiled::free_mint_build;
-use crate::alkanes::precompiled::auth_token_build;
+use alkanes::precompiled::free_mint_build;
+use alkanes::precompiled::auth_token_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -46,7 +46,7 @@ fn setup_basic_token_ecosystem() -> Result<(AlkaneId, AlkaneId, OutPoint)> {
     println!("\n📦 PHASE 1: Deploying Contract Templates");
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [free_mint_build::get_bytes()].into(),
-        [vec![3u128, 797u128, 101u128, 0u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
+        [vec![3u128, 797u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
     
@@ -98,7 +98,7 @@ fn setup_basic_token_ecosystem() -> Result<(AlkaneId, AlkaneId, OutPoint)> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    6u128, 797u128, 0u128,  // Deploy to block 6, tx 797, opcode 0 (Initialize)
+                                    3u128, 797u128, 0u128,  // Deploy to block 4, tx 797, opcode 0 (Initialize)
                                     1000000u128,            // token_units (initial supply)
                                     100000u128,             // value_per_mint  
                                     1000000000u128,         // cap (high cap for testing)

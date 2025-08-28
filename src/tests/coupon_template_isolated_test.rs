@@ -16,7 +16,7 @@ use alkanes::view;
 use anyhow::Result;
 use protobuf::Message;
 use ordinals::Runestone;
-use crate::precompiled::coupon_template_build;
+use crate::tests::std::coupon_template_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -39,7 +39,7 @@ fn test_coupon_template_initialization() -> Result<()> {
     println!("\n📦 PHASE 1: Deploying Coupon Template");
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [coupon_template_build::get_bytes()].into(),
-        [vec![3u128, 0x601u128, 0u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
+        [vec![3u128, 0x601u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
     println!("✅ Coupon template deployed at block 0");
@@ -140,7 +140,7 @@ fn test_coupon_template_getters() -> Result<()> {
     println!("\n📦 PHASE 1: Deploying and Initializing Coupon");
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [coupon_template_build::get_bytes()].into(),
-        [vec![3u128, 0x602u128, 0u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
+        [vec![3u128, 0x602u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
     
@@ -290,7 +290,7 @@ fn test_coupon_template_comprehensive_behavior() -> Result<()> {
     println!("\n📦 PHASE 1: Deploying Coupon Template");
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [coupon_template_build::get_bytes()].into(),
-        [vec![3u128, 0x603u128, 0u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
+        [vec![3u128, 0x603u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
     println!("✅ Coupon template deployed at block 0");

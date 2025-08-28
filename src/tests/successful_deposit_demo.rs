@@ -20,8 +20,8 @@ use std::fmt::Write;
 use protorune::message::MessageContext;
 use protorune::protostone::Protostones;
 
-use crate::precompiled::factory_build;
-use crate::precompiled::coupon_template_build;
+use crate::tests::std::factory_build;
+use crate::tests::std::coupon_template_build;
 use alkanes::precompiled::free_mint_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
@@ -54,8 +54,8 @@ fn test_successful_deposit_demonstration() -> Result<()> {
             factory_build::get_bytes(),
         ].into(),
         [
-            // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init)
-            vec![3u128, 797u128, 101u128],
+            // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init with complete parameters)
+            vec![3u128, 797u128, 101u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354],
             // coupon_token template → deploys instance at block 4, tx 0x601 (opcode 0 for init)
             vec![3u128, 0x601, 0u128, 1u128, 1000u128, 50u128, 10u128, 60u128, 1u128, 1u128, 4u128, 0x701u128],
             // factory template → deploys instance at block 4, tx 0x701 (opcode 0 for init)

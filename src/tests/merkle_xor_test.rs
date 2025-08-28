@@ -22,10 +22,7 @@ use protorune_support::{balance_sheet::ProtoruneRuneId, protostone::{Protostone}
 use protorune::protostone::Protostones;
 use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
-use crate::precompiled::factory_build;
-use crate::precompiled::coupon_template_build;
-use crate::precompiled::free_mint_build;
-use crate::precompiled::auth_token_build;
+use crate::tests::std::factory_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -48,7 +45,7 @@ fn test_merkle_root_and_xor_calculations() -> Result<()> {
     println!("\n📦 STEP 1: Deploying Factory Template");
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [factory_build::get_bytes()].into(),
-        [vec![3u128, 0x701, 101u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
+        [vec![3u128, 0x701u128]].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
     println!("✅ Factory template deployed at block 0");
@@ -83,7 +80,7 @@ fn test_merkle_root_and_xor_calculations() -> Result<()> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    6u128, 0x701u128, 0u128,  // Deploy to block 6, tx 0x701, opcode 0 (Initialize)
+                                    3u128, 0x701u128, 0u128,  // Deploy to block 4, tx 0x701, opcode 0 (Initialize) 
                                     144u128,                   // success_threshold
                                     4u128,                     // coupon_token_template_id.block
                                     0x601u128,                 // coupon_token_template_id.tx
@@ -104,7 +101,7 @@ fn test_merkle_root_and_xor_calculations() -> Result<()> {
     }]);
     index_block(&factory_block, 1)?;
     
-    let factory_contract_id = AlkaneId { block: 2, tx: 0x701 };
+    let factory_contract_id = AlkaneId { block: 4, tx: 1793 };
     println!("✅ Factory contract initialized at {:?}", factory_contract_id);
 
     // STEP 3: Test Getter Functions

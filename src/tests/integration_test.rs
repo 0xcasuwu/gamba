@@ -23,10 +23,10 @@ use protorune::protostone::Protostones;
 use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
 
-use crate::precompiled::factory_build;
-use crate::precompiled::coupon_template_build;
-use crate::precompiled::free_mint_build;
-use crate::precompiled::auth_token_build;
+use crate::tests::std::factory_build;
+use crate::tests::std::coupon_template_build;
+use alkanes::precompiled::free_mint_build;
+use alkanes::precompiled::auth_token_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -55,9 +55,9 @@ fn setup_contract_ecosystem() -> Result<(AlkaneId, AlkaneId, u128, OutPoint)> {
             auth_token_build::get_bytes(),
         ].into(),
         [
-            vec![3u128, 797u128, 101u128], // free_mint
-            vec![3u128, 0x701, 10u128], // factory_build (CouponFactory)
-            vec![3u128, 0x601, 10u128], // coupon_template_build (CouponToken)
+            vec![3u128, 797u128, 101u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354], // free_mint with complete parameters
+            vec![3u128, 0x701], // factory_build (CouponFactory)
+            vec![3u128, 0x601], // coupon_template_build (CouponToken)
             vec![3u128, 0xffee, 0u128, 1u128], // auth_token
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );

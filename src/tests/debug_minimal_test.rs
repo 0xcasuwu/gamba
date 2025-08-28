@@ -22,10 +22,7 @@ use protorune_support::{balance_sheet::ProtoruneRuneId, protostone::{Protostone}
 use protorune::protostone::Protostones;
 use metashrew_core::{println, stdio::stdout};
 use protobuf::Message;
-use crate::precompiled::factory_build;
-use crate::precompiled::coupon_template_build;
-use crate::precompiled::free_mint_build;
-use crate::precompiled::auth_token_build;
+use crate::tests::std::factory_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {

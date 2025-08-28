@@ -27,7 +27,7 @@ use alkanes::view;
 
 use alkanes::precompiled::free_mint_build;
 use crate::tests::std::factory_build;
-use crate::precompiled::coupon_template_build;
+use crate::tests::std::coupon_template_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -103,7 +103,7 @@ fn test_coupon_template_direct() -> Result<()> {
     // Deploy coupon template only
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
-            crate::precompiled::coupon_template_build::get_bytes(),
+            crate::tests::std::coupon_template_build::get_bytes(),
         ].into(),
         [
             vec![3u128, 0x601],  // Deploy coupon template at block 4, tx 0x601
@@ -354,7 +354,7 @@ fn test_debug_factory_deployment_with_minting() -> Result<()> {
         [
             // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init)
             // Arguments: token_units, value_per_mint, cap, name_part1, name_part2, symbol
-            vec![3u128, 797u128, 101u128],
+            vec![3u128, 797u128, 101u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354], // Complete initialization
             // coupon_token template → deploys instance at block 4, tx 0x601 (opcode 0 for init)
             // Arguments: coupon_id, stake_amount, base_xor, stake_bonus, final_result, is_winner, creation_block, factory_block, factory_tx
             vec![3u128, 0x601, 0u128, 1u128, 1000u128, 50u128, 10u128, 60u128, 1u128, 1u128, 4u128, 0x701u128], // Sample coupon initialization
@@ -488,8 +488,8 @@ fn test_comprehensive_factory_integration() -> Result<()> {
             factory_build::get_bytes(),
         ].into(),
         [
-            // free_mint template → deploys instance at block 4, tx 797 (opcode 101 for template init)
-            vec![3u128, 797u128, 101u128],
+            // free_mint template → deploys instance at block 4, tx 797 (opcode 0 for init, complete parameters)
+            vec![3u128, 797u128, 101u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354], // Complete initialization
             // coupon_token template → deploys instance at block 4, tx 0x601 (no opcode for template deployment)
             // This template will be called by factory at block 6, tx 0x601 when creating coupon tokens
             vec![3u128, 0x601, 10u128 ],
@@ -762,6 +762,7 @@ fn test_comprehensive_factory_integration() -> Result<()> {
 #[wasm_bindgen_test]
 fn test_factory_getter_calls() -> Result<()> {
     clear();
+    
     println!("\n🔧 TESTING FACTORY GETTER CALLS");
     println!("=================================");
 
@@ -1108,6 +1109,7 @@ fn test_factory_getter_calls() -> Result<()> {
 #[wasm_bindgen_test]
 fn test_complete_deposit_to_coupon_flow() -> Result<()> {
     clear();
+    
     println!("\n🎰 COMPLETE DEPOSIT → COUPON CREATION FLOW TEST");
     println!("===============================================");
 
@@ -1120,9 +1122,9 @@ fn test_complete_deposit_to_coupon_flow() -> Result<()> {
             factory_build::get_bytes(),
         ].into(),
         [
-            vec![3u128, 797u128, 101u128], // Free-mint template → deploys to 4,797
+            vec![3u128, 797u128, 101u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354], // Free-mint template → deploys to 4,797 with complete parameters
             vec![3u128, 0x601],    // Coupon template → deploys to 4,0x601
-            vec![3u128, 0x701, 10u128],    // Factory template → deploys to 4,0x701
+            vec![3u128, 0x701],    // Factory template → deploys to 4,0x701
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;

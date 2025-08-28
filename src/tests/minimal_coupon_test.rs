@@ -10,7 +10,7 @@ use bitcoin::{Address, Amount, Block, Transaction, TxIn, TxOut, Witness};
 use protorune::test_helpers::{get_btc_network, ADDRESS1};
 use protorune_support::{balance_sheet::ProtoruneRuneId, protostone::{Protostone, ProtostoneEdict}};
 use std::str::FromStr;
-use crate::precompiled::coupon_template_build;
+use crate::tests::std::coupon_template_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
