@@ -613,7 +613,7 @@ impl CouponFactory {
         let context = self.context()?;
         let mut response = CallResponse::forward(&context.incoming_alkanes);
         let template_id = self.coupon_token_template_id()?;
-        let template_alkane_id = AlkaneId { block: 6, tx: template_id };
+        let template_alkane_id = AlkaneId { block: 4, tx: template_id };
         
         let mut data = Vec::with_capacity(32);
         data.extend_from_slice(&template_alkane_id.block.to_le_bytes());
@@ -659,7 +659,7 @@ impl CouponFactory {
         let mut response = CallResponse::forward(&context.incoming_alkanes);
         
         let template_id = self.coupon_token_template_id()?;
-        let template_alkane_id = AlkaneId { block: 6, tx: template_id };
+        let template_alkane_id = AlkaneId { block: 4, tx: template_id };
         
         // Format: [template_id (32)] + [success_threshold (1)] + [successful_coupons (16)] + [failed_coupons (16)]
         // Total: 65 bytes

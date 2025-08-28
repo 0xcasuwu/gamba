@@ -7,7 +7,6 @@ use alkanes_runtime::{
 };
 
 use alkanes_support::{
-    context::Context,
     id::AlkaneId,
     parcel::AlkaneTransfer,
     response::CallResponse,
@@ -81,13 +80,7 @@ fn string_to_u128(s: &str) -> u128 {
 #[derive(Default)]
 pub struct CouponToken(());
 
-impl AlkaneResponder for CouponToken {
-    fn handle_message(&self, context: &Context) -> Result<CallResponse> {
-        println!("🚀 COUPON TEMPLATE: handle_message called with opcode: {}", context.inputs[0]);
-        println!("🚀 COUPON TEMPLATE: All inputs: {:?}", context.inputs);
-        self.dispatch_message(context)
-    }
-}
+// AlkaneResponder implementation provided by declare_alkane! macro
 
 #[derive(MessageDispatch)]
 enum CouponTokenMessage {
