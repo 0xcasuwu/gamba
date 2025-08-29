@@ -80,7 +80,8 @@ fn string_to_u128(s: &str) -> u128 {
 #[derive(Default)]
 pub struct CouponToken(());
 
-// AlkaneResponder implementation provided by declare_alkane! macro
+// Manual AlkaneResponder implementation (required before declare_alkane! macro)
+impl AlkaneResponder for CouponToken {}
 
 #[derive(MessageDispatch)]
 enum CouponTokenMessage {
@@ -262,75 +263,46 @@ impl CouponToken {
         pointer.set(Arc::new(trim(v).as_bytes().to_vec()));
     }
 
-    // Getter functions
-    fn get_coupon_id(&self) -> Result<CallResponse> {
-        let context = self.context()?;
-        let mut response = CallResponse::forward(&context.incoming_alkanes);
-        response.data = self.coupon_id().to_le_bytes().to_vec();
-        Ok(response)
+    // Private getter helper methods for internal use
+    fn get_coupon_id_internal(&self) -> u128 {
+        self.coupon_id()
     }
 
-    fn get_stake_amount(&self) -> Result<CallResponse> {
-        let context = self.context()?;
-        let mut response = CallResponse::forward(&context.incoming_alkanes);
-        response.data = self.stake_amount().to_le_bytes().to_vec();
-        Ok(response)
+    fn get_stake_amount_internal(&self) -> u128 {
+        self.stake_amount()
     }
 
-    fn get_base_xor(&self) -> Result<CallResponse> {
-        let context = self.context()?;
-        let mut response = CallResponse::forward(&context.incoming_alkanes);
-        response.data = (self.base_xor() as u128).to_le_bytes().to_vec();
-        Ok(response)
+    fn get_base_xor_internal(&self) -> u8 {
+        self.base_xor()
     }
 
-    fn get_stake_bonus(&self) -> Result<CallResponse> {
-        let context = self.context()?;
-        let mut response = CallResponse::forward(&context.incoming_alkanes);
-        response.data = (self.stake_bonus() as u128).to_le_bytes().to_vec();
-        Ok(response)
+    fn get_stake_bonus_internal(&self) -> u8 {
+        self.stake_bonus()
     }
 
-    fn get_final_result(&self) -> Result<CallResponse> {
-        let context = self.context()?;
-        let mut response = CallResponse::forward(&context.incoming_alkanes);
-        response.data = (self.final_result() as u128).to_le_bytes().to_vec();
-        Ok(response)
+    fn get_final_result_internal(&self) -> u8 {
+        self.final_result()
     }
 
-    fn get_creation_block(&self) -> Result<CallResponse> {
-        let context = self.context()?;
-        let mut response = CallResponse::forward(&context.incoming_alkanes);
-        response.data = self.creation_block().to_le_bytes().to_vec();
-        Ok(response)
+    fn get_creation_block_internal(&self) -> u128 {
+        self.creation_block()
     }
 
-    fn get_factory_id(&self) -> Result<CallResponse> {
-        let context = self.context()?;
-        let mut response = CallResponse::forward(&context.incoming_alkanes);
-        
-        let factory_id = self.factory_ref();
-        
-        // Pack AlkaneId into response (32 bytes: 16 for block, 16 for tx)
-        let mut data = Vec::with_capacity(32);
-        data.extend_from_slice(&factory_id.block.to_le_bytes());
-        data.extend_from_slice(&factory_id.tx.to_le_bytes());
-        
-        response.data = data;
-        Ok(response)
+    fn get_factory_id_internal(&self) -> AlkaneId {
+        self.factory_ref()
     }
 
     fn get_all_coupon_details(&self) -> Result<CallResponse> {
         let context = self.context()?;
         let mut response = CallResponse::forward(&context.incoming_alkanes);
 
-        // Return core coupon details
-        let coupon_id = self.coupon_id();
-        let stake_amount = self.stake_amount();
-        let base_xor = self.base_xor() as u128;
-        let stake_bonus = self.stake_bonus() as u128;
-        let final_result = self.final_result() as u128;
-        let creation_block = self.creation_block();
+        // Return core coupon details using internal getters
+        let coupon_id = self.get_coupon_id_internal();
+        let stake_amount = self.get_stake_amount_internal();
+        let base_xor = self.get_base_xor_internal() as u128;
+        let stake_bonus = self.get_stake_bonus_internal() as u128;
+        let final_result = self.get_final_result_internal() as u128;
+        let creation_block = self.get_creation_block_internal();
         let is_winner = if self.is_winner_internal() { 1u128 } else { 0u128 };
 
         // Pack all values into a single byte array
@@ -563,6 +535,92 @@ impl CouponToken {
 }
 
 
+
+impl CouponToken {
+    /// Handle GetCouponId opcode (method name matches enum variant in snake_case)
+    fn get_coupon_id(&self) -> Result<CallResponse> {
+        println!("🔍 GETTER CALLED: GetCouponId (opcode 10)");
+        let context = self.context()?;
+        let mut response = CallResponse::forward(&context.incoming_alkanes);
+        let coupon_id = self.get_coupon_id_internal();
+        response.data = coupon_id.to_le_bytes().to_vec();
+        println!("🔍 GETTER RESULT: Coupon ID = {}", coupon_id);
+        Ok(response)
+    }
+    
+    /// Handle GetStakeAmount opcode
+    fn get_stake_amount(&self) -> Result<CallResponse> {
+        println!("🔍 GETTER CALLED: GetStakeAmount (opcode 11)");
+        let context = self.context()?;
+        let mut response = CallResponse::forward(&context.incoming_alkanes);
+        let stake_amount = self.get_stake_amount_internal();
+        response.data = stake_amount.to_le_bytes().to_vec();
+        println!("🔍 GETTER RESULT: Stake Amount = {}", stake_amount);
+        Ok(response)
+    }
+    
+    /// Handle GetBaseXor opcode
+    fn get_base_xor(&self) -> Result<CallResponse> {
+        println!("🔍 GETTER CALLED: GetBaseXor (opcode 12)");
+        let context = self.context()?;
+        let mut response = CallResponse::forward(&context.incoming_alkanes);
+        let base_xor = self.get_base_xor_internal();
+        response.data = (base_xor as u128).to_le_bytes().to_vec();
+        println!("🔍 GETTER RESULT: Base XOR = {}", base_xor);
+        Ok(response)
+    }
+    
+    /// Handle GetStakeBonus opcode
+    fn get_stake_bonus(&self) -> Result<CallResponse> {
+        println!("🔍 GETTER CALLED: GetStakeBonus (opcode 13)");
+        let context = self.context()?;
+        let mut response = CallResponse::forward(&context.incoming_alkanes);
+        let stake_bonus = self.get_stake_bonus_internal();
+        response.data = (stake_bonus as u128).to_le_bytes().to_vec();
+        println!("🔍 GETTER RESULT: Stake Bonus = {}", stake_bonus);
+        Ok(response)
+    }
+    
+    /// Handle GetFinalResult opcode
+    fn get_final_result(&self) -> Result<CallResponse> {
+        println!("🔍 GETTER CALLED: GetFinalResult (opcode 14)");
+        let context = self.context()?;
+        let mut response = CallResponse::forward(&context.incoming_alkanes);
+        let final_result = self.get_final_result_internal();
+        response.data = (final_result as u128).to_le_bytes().to_vec();
+        println!("🔍 GETTER RESULT: Final Result = {}", final_result);
+        Ok(response)
+    }
+    
+    /// Handle GetCreationBlock opcode
+    fn get_creation_block(&self) -> Result<CallResponse> {
+        println!("🔍 GETTER CALLED: GetCreationBlock (opcode 15)");
+        let context = self.context()?;
+        let mut response = CallResponse::forward(&context.incoming_alkanes);
+        let creation_block = self.get_creation_block_internal();
+        response.data = creation_block.to_le_bytes().to_vec();
+        println!("🔍 GETTER RESULT: Creation Block = {}", creation_block);
+        Ok(response)
+    }
+    
+    /// Handle GetFactoryId opcode
+    fn get_factory_id(&self) -> Result<CallResponse> {
+        println!("🔍 GETTER CALLED: GetFactoryId (opcode 16)");
+        let context = self.context()?;
+        let mut response = CallResponse::forward(&context.incoming_alkanes);
+        
+        let factory_id = self.get_factory_id_internal();
+        
+        // Pack AlkaneId into response (32 bytes: 16 for block, 16 for tx)
+        let mut data = Vec::with_capacity(32);
+        data.extend_from_slice(&factory_id.block.to_le_bytes());
+        data.extend_from_slice(&factory_id.tx.to_le_bytes());
+        
+        response.data = data;
+        println!("🔍 GETTER RESULT: Factory ID = {:?}", factory_id);
+        Ok(response)
+    }
+}
 
 declare_alkane! {
   impl AlkaneResponder for CouponToken {
