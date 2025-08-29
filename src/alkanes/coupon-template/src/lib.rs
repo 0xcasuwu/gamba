@@ -137,6 +137,10 @@ enum CouponTokenMessage {
     #[opcode(19)]
     #[returns(CallResponse)]
     IsWinner,
+    
+    #[opcode(49)] // 0x31 in hex - Factory calls this specific opcode for redemption
+    #[returns(CallResponse)]
+    GetAllDetailsForFactory,
 
     /// Get the token name
     #[opcode(99)]
@@ -338,6 +342,12 @@ impl CouponToken {
         response.data = is_winner.to_le_bytes().to_vec();
 
         Ok(response)
+    }
+    
+    fn get_all_details_for_factory(&self) -> Result<CallResponse> {
+        // Factory calls opcode 49 (0x31) and expects the exact same format as get_all_coupon_details
+        // Just delegate to the existing method that already formats data correctly
+        self.get_all_coupon_details()
     }
 
     // Storage operations using StoragePointer pattern
