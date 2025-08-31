@@ -50,6 +50,11 @@ enum CouponFactoryMessage {
     #[opcode(1)]
     CreateCoupon,
 
+    #[opcode(2)]
+    RedeemCoupon {
+        coupon_id: AlkaneId,
+    },
+
     #[opcode(10)]
     #[returns(u128)]
     GetSuccessfulCoupons,
@@ -117,6 +122,12 @@ impl Token for CouponFactory {
 }
 
 impl CouponFactory {
+    fn redeem_coupon(&self, coupon_id: AlkaneId) -> Result<CallResponse> {
+        let _context = self.context()?;
+        // TODO: Implement coupon redemption logic
+        // For now, just return a successful response
+        Ok(CallResponse::default())
+    }
     fn initialize(
         &self,
         success_threshold: u128,

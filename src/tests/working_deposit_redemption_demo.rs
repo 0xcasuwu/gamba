@@ -55,7 +55,7 @@ fn test_working_deposit_redemption() -> Result<()> {
             vec![3u128, 0x701],
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
-    index_block(&template_block, 0)?;
+    index_block(&template_block, 6)?;
 
     // Initialize Free-Mint Contract
     let free_mint_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
@@ -135,14 +135,43 @@ fn test_working_deposit_redemption() -> Result<()> {
                     etching: None,
                     mint: None,
                     pointer: None,
+                    protocol: None
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&factory_block, 6)?;
+    let factory_contract_id = AlkaneId { block: 6, tx: 1793 };
+
+    // Initialize the factory contract with template ID
+    let factory_init_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())?.require_network(get_btc_network())?.script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
                     protocol: Some(
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    4u128, 0x701u128, 0u128,
-                                    144u128,
-                                    6u128,
-                                    0x601u128,
+                                    4u128, 1793u128, 0u128,   // Call factory at (4, 1793) with opcode 0 (Initialize)
+                                    144u128,                  // success_threshold
+                                    6u128, 0x601u128,         // coupon_template_id at (6, 0x601)
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -158,8 +187,7 @@ fn test_working_deposit_redemption() -> Result<()> {
             }
         ],
     }]);
-    index_block(&factory_block, 6)?;
-    let factory_contract_id = AlkaneId { block: 4, tx: 1793 };
+    index_block(&factory_init_block, 8)?;
 
     // Deposit
     let deposit_block = perform_deposit_with_traces(&factory_contract_id, &mint_outpoint, 1000, 10)?;
@@ -251,7 +279,7 @@ fn perform_deposit_with_traces(factory_id: &AlkaneId, stake_outpoint: &OutPoint,
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    factory_id.block,
+                                    4u128,
                                     factory_id.tx,
                                     1u128,
                                 ]).encipher(),
@@ -310,7 +338,7 @@ fn perform_redemption_with_traces(factory_id: &AlkaneId, coupon_outpoint: &OutPo
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    factory_id.block,
+                                    4u128,
                                     factory_id.tx,
                                     2u128,
                                 ]).encipher(),
