@@ -160,14 +160,12 @@ impl CouponFactory {
             return Err(anyhow!("Coupon has already been redeemed"));
         }
 
-        // Calculate payout based on stake amount and bonus multipliers
-        let base_payout = coupon_details.stake_amount;
-        let bonus_multiplier = self.calculate_bonus_multiplier(coupon_details.final_result);
-        let total_payout = base_payout * bonus_multiplier;
+        // Calculate pot-based payout (proportional distribution)
+        let total_payout = self.calculate_pot_payout(&coupon_details)?;
 
-        println!("🎰 REDEEM: Coupon {} payout: {} (base: {}, multiplier: {}x)", 
+        println!("🎰 REDEEM: Coupon {} pot payout: {} (original deposit: {})", 
             format!("({}, {})", coupon_id.block, coupon_id.tx),
-            total_payout, base_payout, bonus_multiplier);
+            total_payout, coupon_details.stake_amount);
 
         // Mark coupon as redeemed
         self.mark_coupon_redeemed(&coupon_id)?;
@@ -182,15 +180,96 @@ impl CouponFactory {
         Ok(response)
     }
 
-    /// Calculate bonus multiplier based on final XOR result
-    fn calculate_bonus_multiplier(&self, final_result: u8) -> u128 {
-        match final_result {
-            250..=255 => 10,  // Jackpot: 10x multiplier
-            240..=249 => 5,   // Big win: 5x multiplier  
-            220..=239 => 3,   // Good win: 3x multiplier
-            200..=219 => 2,   // Small win: 2x multiplier
-            _ => 1,           // Regular win: 1x multiplier
+    /// Calculate pot-based payout for a winning coupon
+    fn calculate_pot_payout(&self, coupon_details: &CouponDetails) -> Result<u128> {
+        let creation_block = coupon_details.creation_block;
+        
+        // Get all coupons created at the same block
+        let block_coupons = self.get_block_coupons(creation_block);
+        if block_coupons.is_empty() {
+            // Fallback: just return original deposit if no block data
+            return Ok(coupon_details.stake_amount);
         }
+        
+        let mut total_winning_deposits = 0u128;
+        let mut total_losing_deposits = 0u128;
+        
+        // Calculate winning vs losing pots
+        for coupon_id in &block_coupons {
+            let details = self.get_coupon_details(coupon_id)?;
+            if details.is_winner {
+                total_winning_deposits += details.stake_amount;
+            } else {
+                total_losing_deposits += details.stake_amount;
+            }
+        }
+        
+        println!("🏆 POT CALCULATION for block {}:", creation_block);
+        println!("   • Total winning deposits: {}", total_winning_deposits);
+        println!("   • Total losing deposits: {}", total_losing_deposits);
+        println!("   • This winner's deposit: {}", coupon_details.stake_amount);
+        
+        if total_winning_deposits == 0 {
+            return Err(anyhow!("No winning deposits found for block {}", creation_block));
+        }
+        
+        // Calculate proportional share of losing pot
+        let proportional_share = if total_losing_deposits > 0 {
+            (coupon_details.stake_amount * total_losing_deposits) / total_winning_deposits
+        } else {
+            0u128 // No losing deposits means no bonus
+        };
+        
+        // Winner gets: original deposit + proportional share of losing deposits
+        let total_payout = coupon_details.stake_amount + proportional_share;
+        
+        println!("   • Proportional share of losing pot: {}", proportional_share);
+        println!("   • Total payout: {} (deposit: {} + bonus: {})", 
+            total_payout, coupon_details.stake_amount, proportional_share);
+        
+        Ok(total_payout)
+    }
+    
+    /// Get all coupon IDs created at a specific block
+    fn get_block_coupons(&self, block: u128) -> Vec<AlkaneId> {
+        let key = format!("/block_coupons/{}", block);
+        let data = self.load(key.into_bytes());
+        
+        if data.is_empty() {
+            return Vec::new();
+        }
+        
+        let mut coupons = Vec::new();
+        let mut offset = 0;
+        
+        // Each AlkaneId is 32 bytes (16 bytes block + 16 bytes tx)
+        while offset + 32 <= data.len() {
+            let block_bytes: [u8; 16] = data[offset..offset+16].try_into().unwrap_or([0; 16]);
+            let tx_bytes: [u8; 16] = data[offset+16..offset+32].try_into().unwrap_or([0; 16]);
+            
+            coupons.push(AlkaneId {
+                block: u128::from_le_bytes(block_bytes),
+                tx: u128::from_le_bytes(tx_bytes),
+            });
+            
+            offset += 32;
+        }
+        
+        coupons
+    }
+    
+    /// Add a coupon to the block's coupon list
+    fn add_coupon_to_block(&self, block: u128, coupon_id: &AlkaneId) -> Result<()> {
+        let key = format!("/block_coupons/{}", block);
+        let key_bytes = key.clone().into_bytes();
+        let mut data = self.load(key_bytes);
+        
+        // Append new coupon ID (32 bytes: 16 for block, 16 for tx)
+        data.extend_from_slice(&coupon_id.block.to_le_bytes());
+        data.extend_from_slice(&coupon_id.tx.to_le_bytes());
+        
+        self.store(key.into_bytes(), data);
+        Ok(())
     }
 
     fn initialize(
@@ -219,6 +298,7 @@ impl CouponFactory {
     fn create_coupon(&self) -> Result<CallResponse> {
         let context = self.context()?;
         let mut response = CallResponse::default();
+        let current_block = u128::from(self.height());
 
         println!("🔍 DEBUG: Factory create_coupon called");
         
@@ -248,6 +328,9 @@ impl CouponFactory {
 
             // Register the coupon token as our child
             self.register_coupon(&coupon_token.id);
+            
+            // Track coupon by creation block for pot calculations
+            self.add_coupon_to_block(current_block, &coupon_token.id)?;
 
             // Increment successful coupons
             let new_successful = self.successful_coupons().checked_add(1).unwrap_or(0);
@@ -267,6 +350,9 @@ impl CouponFactory {
 
             // Register the coupon token as our child
             self.register_coupon(&coupon_token.id);
+            
+            // Track coupon by creation block for pot calculations
+            self.add_coupon_to_block(current_block, &coupon_token.id)?;
 
             // Increment failed coupons
             let new_failed = self.failed_coupons().checked_add(1).unwrap_or(0);

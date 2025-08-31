@@ -16,4 +16,5 @@ pub mod happy_path_redemption;
 // pub mod factory_verification_test;
 // pub mod coupon_integration_test;
 pub mod minimal_test;
+pub mod multi_user_pot_distribution_test;
 // pub mod coupon_utils;
