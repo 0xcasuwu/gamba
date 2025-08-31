@@ -121,13 +121,8 @@ impl CouponFactory {
         // Calculate base XOR from blockchain data
         let base_xor = self.calculate_base_xor_internal()?;
 
-        // Get staked tokens amount (any tokens accepted)
+        // Get amount incoming from context.incoming_alkanes[0].0 - be sure it matches with init value.
         let stake_amount = self.get_stake_input_amount(&context)?;
-        
-        // Minimum stake validation
-        if stake_amount < MINIMUM_STAKE_AMOUNT {
-            return Err(anyhow!("Insufficient stake amount. Minimum: {}", MINIMUM_STAKE_AMOUNT));
-        }
 
         let stake_bonus = self.calculate_stake_bonus_internal(stake_amount)?;
         let final_result = base_xor.saturating_add(stake_bonus);
@@ -257,13 +252,15 @@ impl CouponFactory {
         is_winner: bool,
     ) -> Result<AlkaneTransfer> {
         let context = self.context()?;
-        let coupon_template_id = self.coupon_token_template_id()?;
         let current_block = u128::from(self.height());
         let coupon_id = self.total_coupons();
 
         // Create cellpack for coupon token creation
         let cellpack = Cellpack {
-            target: coupon_template_id,
+            target: AlkaneId {
+                block: 6,  // External call target (6 → 4 → 2 for coupon creation)
+                tx: COUPON_TOKEN_TEMPLATE_ID, // Template TX ID constant
+            },
             inputs: vec![
                 0x0,           // Initialize opcode
                 coupon_id,     // Unique coupon ID

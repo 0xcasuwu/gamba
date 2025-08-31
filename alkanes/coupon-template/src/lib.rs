@@ -170,7 +170,7 @@ impl Token for CouponToken {
             .unwrap_or_else(|_| {
                 // Safe fallback that doesn't rely on storage that might not be initialized
                 let coupon_id = self.coupon_id_pointer().get_value::<u128>();
-                let is_winner = self.is_winner();
+                let is_winner = self.get_is_winner();
                 format!("{} Coupon #{}", if is_winner { "WINNING" } else { "LOSING" }, coupon_id)
             })
     }
@@ -180,7 +180,7 @@ impl Token for CouponToken {
             .unwrap_or_else(|_| {
                 // Safe fallback that doesn't rely on storage that might not be initialized
                 let coupon_id = self.coupon_id_pointer().get_value::<u128>();
-                let is_winner = self.is_winner();
+                let is_winner = self.get_is_winner();
                 format!("{}-{}", if is_winner { "WIN" } else { "LOSE" }, coupon_id)
             })
     }
@@ -329,7 +329,7 @@ impl CouponToken {
         let stake_bonus = self.stake_bonus() as u128;
         let final_result = self.final_result() as u128;
         let creation_block = self.creation_block();
-        let is_winner = if self.is_winner() { 1u128 } else { 0u128 };
+        let is_winner = if self.get_is_winner() { 1u128 } else { 0u128 };
 
         // Pack all values into a single byte array
         // Each value is 16 bytes (128 bits) - 7 values total
@@ -350,17 +350,17 @@ impl CouponToken {
         let context = self.context()?;
         let mut response = CallResponse::forward(&context.incoming_alkanes);
 
-        let coupon_type = self.determine_coupon_type(self.final_result(), self.is_winner());
+        let coupon_type = self.determine_coupon_type(self.final_result(), self.get_is_winner());
         response.data = coupon_type.as_bytes().to_vec();
 
         Ok(response)
     }
 
-    fn is_winner_response(&self) -> Result<CallResponse> {
+    fn is_winner(&self) -> Result<CallResponse> {
         let context = self.context()?;
         let mut response = CallResponse::forward(&context.incoming_alkanes);
 
-        let is_winner = if self.is_winner() { 1u128 } else { 0u128 };
+        let is_winner = if self.get_is_winner() { 1u128 } else { 0u128 };
         response.data = is_winner.to_le_bytes().to_vec();
 
         Ok(response)
@@ -458,7 +458,7 @@ impl CouponToken {
         StoragePointer::from_keyword("/is_winner")
     }
 
-    fn is_winner(&self) -> bool {
+    fn get_is_winner(&self) -> bool {
         self.is_winner_pointer().get_value::<u8>() != 0
     }
 
@@ -513,8 +513,8 @@ impl CouponToken {
             final_result: self.final_result(),
             creation_block: self.creation_block(),
             current_block: u128::from(self.height()),
-            coupon_type: self.determine_coupon_type(self.final_result(), self.is_winner()),
-            is_winner: self.is_winner(),
+            coupon_type: self.determine_coupon_type(self.final_result(), self.get_is_winner()),
+            is_winner: self.get_is_winner(),
         };
 
         // Generate the SVG
@@ -548,8 +548,8 @@ impl CouponToken {
             final_result: self.final_result(),
             creation_block: self.creation_block(),
             current_block: u128::from(self.height()),
-            coupon_type: self.determine_coupon_type(self.final_result(), self.is_winner()),
-            is_winner: self.is_winner(),
+            coupon_type: self.determine_coupon_type(self.final_result(), self.get_is_winner()),
+            is_winner: self.get_is_winner(),
         };
 
         // Generate the attributes JSON

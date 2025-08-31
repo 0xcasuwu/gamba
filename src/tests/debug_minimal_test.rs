@@ -168,10 +168,8 @@ fn test_minimal_debug_factory_deployment() -> Result<()> {
                             Protostone {
                                 message: into_cellpack(vec![
                                     4u128, 0x701, 0u128, // Initialize coupon factory
-                                    dust_token_id.block, dust_token_id.tx,
                                     144u128, // Success threshold
-                                    5u128, // DUST bonus rate
-                                    coupon_token_template_id.block, coupon_token_template_id.tx,
+                                    coupon_token_template_id.block, coupon_token_template_id.tx, // Coupon template ID
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -390,9 +388,7 @@ fn test_minimal_debug_forge_call() -> Result<()> {
                             Protostone {
                                 message: into_cellpack(vec![
                                     4u128, 0x701, 0u128,     // FIXED: Call factory instance at 4,0x701 
-                                    dust_token_id.block, dust_token_id.tx,
-                                    144u128,
-                                    5u128,
+                                    144u128, // Success threshold
                                     coupon_token_template_id.block, coupon_token_template_id.tx, // Template reference (4,0x601)
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
@@ -628,9 +624,7 @@ fn test_minimal_debug_coupon_creation() -> Result<()> {
                             Protostone {
                                 message: into_cellpack(vec![
                                     4u128, 0x701, 0u128,     // Initialize factory
-                                    dust_token_id.block, dust_token_id.tx,
                                     144u128, // Success threshold
-                                    5u128,   // DUST bonus rate
                                     coupon_token_template_id.block, coupon_token_template_id.tx,
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
@@ -843,9 +837,7 @@ fn test_minimal_debug_dust_gambling_mechanics() -> Result<()> {
                             Protostone {
                                 message: into_cellpack(vec![
                                     4u128, 0x701, 0u128,
-                                    dust_token_id.block, dust_token_id.tx,
                                     144u128, // Success threshold (lower for testing)
-                                    5u128,   // DUST bonus rate
                                     coupon_token_template_id.block, coupon_token_template_id.tx,
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
@@ -1122,9 +1114,7 @@ fn test_linear_probability_demonstration() -> Result<()> {
                             Protostone {
                                 message: into_cellpack(vec![
                                     4u128, 0x701, 0u128,
-                                    dust_token_id.block, dust_token_id.tx,
                                     144u128, // Success threshold
-                                    5u128,   // DUST bonus rate (5 per 1000 DUST)
                                     coupon_token_template_id.block, coupon_token_template_id.tx,
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
