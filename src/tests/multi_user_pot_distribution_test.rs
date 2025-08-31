@@ -53,16 +53,23 @@ fn test_multi_user_pot_distribution() -> Result<()> {
             factory_build::get_bytes(),
         ].into(),
         [
-            vec![3u128, 797u128, 101u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354], // Free-mint template
-            vec![3u128, 0x601], // Coupon template  
-            vec![3u128, 0x701], // Factory template
+            // Free-mint template → will deploy at block 4, tx 797 with full initialization
+            vec![3u128, 797u128, 101u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354], 
+            // Coupon template → will deploy at block 4, tx 0x601 (factory will call at block 6, tx 0x601)
+            vec![3u128, 0x601, 10u128], 
+            // Factory template → will deploy at block 4, tx 0x701 with initialization
+            vec![3u128, 0x701, 0u128, 144u128, 4u128, 0x601u128], // success_threshold=144, coupon_template_id=4,0x601
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
     println!("✅ All contract templates deployed at block 0");
+    println!("   • Free-mint template: block 4, tx 797");
+    println!("   • Coupon template: block 4, tx 0x601");
+    println!("   • Factory template: block 4, tx 0x701");
 
-    // PHASE 2: Create free-mint token contract
-    println!("\n🪙 PHASE 2: Creating DUST Token Contract");
+    // PHASE 2: Initialize free-mint token contract (6 → 4 → 2 pattern)
+    println!("\n🪙 PHASE 2: Initializing DUST Token Contract");
+    println!("   Pattern: 6u128, 797u128, 0u128 → targets block 4, tx 797 → deploys to block 2, tx 1");
     let free_mint_block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: bitcoin::transaction::Version::ONE,
         lock_time: absolute::LockTime::ZERO,
@@ -86,7 +93,15 @@ fn test_multi_user_pot_distribution() -> Result<()> {
                     protocol: Some(
                         vec![
                             Protostone {
-                                message: into_cellpack(vec![2u128, 797u128, 0u128]).encipher(),
+                                message: into_cellpack(vec![
+                                    6u128, 797u128, 0u128,  // Deploy to block 6, tx 797, opcode 0 (Initialize)
+                                    1000000u128,            // token_units (initial supply)
+                                    100000u128,             // value_per_mint  
+                                    1000000000u128,         // cap (high cap for testing)
+                                    0x54455354,             // name_part1 ("TEST")
+                                    0x434f494e,             // name_part2 ("COIN")
+                                    0x545354                // symbol ("TST")
+                                ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
                                 refund: Some(0),
@@ -103,10 +118,11 @@ fn test_multi_user_pot_distribution() -> Result<()> {
     }]);
     index_block(&free_mint_block, 2)?;
     let dust_token_id = AlkaneId { block: 2, tx: 1 };
-    println!("✅ DUST token created at {:?}", dust_token_id);
+    println!("✅ DUST token initialized at {:?}", dust_token_id);
 
-    // PHASE 3: Initialize Factory
+    // PHASE 3: Initialize Factory (6 → 4 → 2 pattern)
     println!("\n🏭 PHASE 3: Initializing Factory");
+    println!("   Pattern: 6u128, 0x701, 0u128 → targets block 4, tx 0x701 → deploys factory at block 2, tx 1793");
     let factory_init_block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: bitcoin::transaction::Version::ONE,
         lock_time: absolute::LockTime::ZERO,
@@ -131,9 +147,9 @@ fn test_multi_user_pot_distribution() -> Result<()> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    2u128, 1793u128, 0u128,  // Call factory at (2, 1793) with Initialize
-                                    144u128,                 // success_threshold
-                                    0u128, 0x601u128,        // coupon_template_id at (0, 0x601)
+                                    6u128, 0x701, 0u128,   // Deploy to block 6, tx 0x701, opcode 0 (Initialize)
+                                    144u128,               // success_threshold  
+                                    4u128, 0x601u128,      // coupon_token_template_id (AlkaneId { block: 4, tx: 0x601 })
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -235,8 +251,8 @@ fn create_user_deposit(username: &str, amount: u128, dust_token_id: &AlkaneId, f
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    2u128,         // Target factory at block 2
-                                    factory_id.tx, // Factory tx ID
+                                    4u128,         // Target factory at block 4
+                                    1793u128,      // Factory tx ID  
                                     1u128,         // CreateCoupon opcode
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
