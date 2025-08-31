@@ -53,12 +53,13 @@ dependencies = [
 
 [[package]]
 name = "alkanes"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "1.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?branch=kungfuflex%2Fprost#87c572e9fd88450b146bcd525d26ed6dcf153965"
 dependencies = [
  "alkanes-support",
  "anyhow",
  "bitcoin 0.32.6",
+ "borsh",
  "byteorder",
  "flate2",
  "hex",
@@ -68,16 +69,15 @@ dependencies = [
  "metashrew-support",
  "num",
  "once_cell",
- "ordinals 0.5.2",
- "protobuf 3.7.2",
- "protobuf-codegen 3.7.2",
- "protoc-bin-vendored",
- "protoc-rust",
+ "ordinals 1.2.3",
+ "prost",
+ "prost-build",
  "protorune",
  "protorune-support",
  "ruint",
  "serde",
  "serde_json",
+ "sha2",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
@@ -87,8 +87,8 @@ dependencies = [
 
 [[package]]
 name = "alkanes-macros"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "1.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?branch=kungfuflex%2Fprost#87c572e9fd88450b146bcd525d26ed6dcf153965"
 dependencies = [
  "ciborium",
  "proc-macro2",
@@ -99,8 +99,8 @@ dependencies = [
 
 [[package]]
 name = "alkanes-runtime"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "1.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?branch=kungfuflex%2Fprost#87c572e9fd88450b146bcd525d26ed6dcf153965"
 dependencies = [
  "alkanes-macros",
  "alkanes-support",
@@ -113,18 +113,15 @@ dependencies = [
 
 [[package]]
 name = "alkanes-support"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "1.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?branch=kungfuflex%2Fprost#87c572e9fd88450b146bcd525d26ed6dcf153965"
 dependencies = [
  "anyhow",
  "bitcoin 0.32.6",
  "flate2",
- "hex",
  "metashrew-support",
- "protobuf 3.7.2",
- "protobuf-codegen 3.7.2",
- "protoc-bin-vendored",
- "protoc-rust",
+ "prost",
+ "prost-build",
  "protorune-support",
  "serde",
 ]
@@ -466,6 +463,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "block-buffer"
+version = "0.10.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
+dependencies = [
+ "generic-array",
+]
+
+[[package]]
+name = "borsh"
+version = "1.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad8646f98db542e39fc66e68a20b2144f6a732636df7c2354e74645faaa433ce"
+dependencies = [
+ "borsh-derive",
+ "cfg_aliases",
+]
+
+[[package]]
+name = "borsh-derive"
+version = "1.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdd1d3c0c2f5833f22386f252fe8ed005c7f59fdcddeef025c01b4c3b9fd9ac3"
+dependencies = [
+ "once_cell",
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -503,6 +532,12 @@ name = "cfg-if"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9555578bc9e57714c812a1f84e4fc5b4d21fcb063490c624de019f7464c91268"
+
+[[package]]
+name = "cfg_aliases"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
 name = "chrono"
@@ -575,6 +610,15 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
+
+[[package]]
+name = "cpufeatures"
+version = "0.2.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "crc32fast"
@@ -706,6 +750,7 @@ version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
+ "block-buffer",
  "crypto-common",
 ]
 
@@ -784,6 +829,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "fixedbitset"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
+
+[[package]]
 name = "flate2"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -820,8 +871,9 @@ dependencies = [
  "metashrew-core",
  "metashrew-support",
  "once_cell",
- "ordinals 0.5.2",
- "protobuf 3.7.2",
+ "ordinals 1.2.3",
+ "prost",
+ "protobuf",
  "protorune",
  "protorune-support",
  "wasm-bindgen",
@@ -893,6 +945,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5971ac85611da7067dbfcabef3c70ebb5606018acd9e2a3903a0da507521e0d5"
 
 [[package]]
+name = "heck"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
 name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -918,15 +976,6 @@ name = "hex_lit"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3011d1213f159867b13cfd6ac92d2cd5f1345762c63be3554e84092d85a50bbd"
-
-[[package]]
-name = "home"
-version = "0.5.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "589533453244b0995c858700322199b2becb13b627df2851f64a2775d024abcf"
-dependencies = [
- "windows-sys 0.59.0",
-]
 
 [[package]]
 name = "iana-time-zone"
@@ -1051,12 +1100,6 @@ checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "linux-raw-sys"
-version = "0.4.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
-
-[[package]]
-name = "linux-raw-sys"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd945864f07fe9f5371a27ad7b52a172b4b499999f1d97574c9fa68373937e12"
@@ -1075,8 +1118,8 @@ checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
 
 [[package]]
 name = "metashrew-core"
-version = "9.0.0"
-source = "git+https://github.com/sandshrewmetaprotocols/metashrew#ba3f0177735038916a3e1cfcaaabd0aec74268d9"
+version = "9.0.1"
+source = "git+https://github.com/sandshrewmetaprotocols/metashrew?branch=sandshrewmetadev%2Fprost#8a49860d090c517833a3816e8507b498be975854"
 dependencies = [
  "anyhow",
  "bitcoin 0.31.2",
@@ -1085,28 +1128,23 @@ dependencies = [
  "hex",
  "metashrew-support",
  "ordinals 0.0.8",
- "protobuf 3.7.2",
- "protobuf-codegen 3.7.2",
- "protoc-bin-vendored",
- "protoc-rust",
+ "prost",
+ "prost-build",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]
 
 [[package]]
 name = "metashrew-support"
-version = "9.0.0"
-source = "git+https://github.com/sandshrewmetaprotocols/metashrew#ba3f0177735038916a3e1cfcaaabd0aec74268d9"
+version = "9.0.1"
+source = "git+https://github.com/sandshrewmetaprotocols/metashrew?branch=sandshrewmetadev%2Fprost#8a49860d090c517833a3816e8507b498be975854"
 dependencies = [
  "anyhow",
  "bech32 0.11.0",
  "bitcoin 0.32.6",
- "flate2",
  "hex",
- "protobuf 3.7.2",
- "protobuf-codegen 3.7.2",
- "protoc-bin-vendored",
- "protoc-rust",
+ "prost",
+ "prost-build",
 ]
 
 [[package]]
@@ -1133,6 +1171,12 @@ name = "multi-stash"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "685a9ac4b61f4e728e1d2c6a7844609c16527aeb5e6c865915c08e619c16410f"
+
+[[package]]
+name = "multimap"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d87ecb2933e8aeadb3e3a02b828fed80a7528047e68b4f424523a0981a3a084"
 
 [[package]]
 name = "num"
@@ -1235,8 +1279,8 @@ dependencies = [
 
 [[package]]
 name = "ordinals"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "1.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?branch=kungfuflex%2Fprost#87c572e9fd88450b146bcd525d26ed6dcf153965"
 dependencies = [
  "bitcoin 0.32.6",
  "derive_more 1.0.0",
@@ -1291,6 +1335,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "petgraph"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
+dependencies = [
+ "fixedbitset",
+ "indexmap 2.10.0",
+]
+
+[[package]]
 name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1303,6 +1357,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
  "zerocopy",
+]
+
+[[package]]
+name = "prettyplease"
+version = "0.2.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff24dfcda44452b9816fff4cd4227e1bb73ff5a2f1bc1105aa92fb8565ce44d2"
+dependencies = [
+ "proc-macro2",
+ "syn 2.0.104",
 ]
 
 [[package]]
@@ -1351,10 +1415,57 @@ dependencies = [
 ]
 
 [[package]]
-name = "protobuf"
-version = "2.28.0"
+name = "prost"
+version = "0.12.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
+checksum = "deb1435c188b76130da55f17a466d252ff7b1418b2ad3e037d127b94e3411f29"
+dependencies = [
+ "bytes",
+ "prost-derive",
+]
+
+[[package]]
+name = "prost-build"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22505a5c94da8e3b7c2996394d1c933236c4d743e81a410bcca4e6989fc066a4"
+dependencies = [
+ "bytes",
+ "heck",
+ "itertools",
+ "log",
+ "multimap",
+ "once_cell",
+ "petgraph",
+ "prettyplease",
+ "prost",
+ "prost-types",
+ "regex",
+ "syn 2.0.104",
+ "tempfile",
+]
+
+[[package]]
+name = "prost-derive"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81bddcdb20abf9501610992b6759a4c888aef7d1a7247ef75e2404275ac24af1"
+dependencies = [
+ "anyhow",
+ "itertools",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "prost-types"
+version = "0.12.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9091c90b0a32608e984ff2fa4091273cbdd755d54935c51d520887f4a1dbd5b0"
+dependencies = [
+ "prost",
+]
 
 [[package]]
 name = "protobuf"
@@ -1362,49 +1473,10 @@ version = "3.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d65a1d4ddae7d8b5de68153b48f6aa3bba8cb002b243dbdbc55a5afbc98f99f4"
 dependencies = [
+ "bytes",
  "once_cell",
  "protobuf-support",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "protobuf-codegen"
-version = "2.28.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "033460afb75cf755fcfc16dfaed20b86468082a2ea24e05ac35ab4a099a017d6"
-dependencies = [
- "protobuf 2.28.0",
-]
-
-[[package]]
-name = "protobuf-codegen"
-version = "3.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d3976825c0014bbd2f3b34f0001876604fe87e0c86cd8fa54251530f1544ace"
-dependencies = [
- "anyhow",
- "once_cell",
- "protobuf 3.7.2",
- "protobuf-parse",
- "regex",
- "tempfile",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "protobuf-parse"
-version = "3.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4aeaa1f2460f1d348eeaeed86aea999ce98c1bded6f089ff8514c9d9dbdc973"
-dependencies = [
- "anyhow",
- "indexmap 2.10.0",
- "log",
- "protobuf 3.7.2",
- "protobuf-support",
- "tempfile",
- "thiserror 1.0.69",
- "which",
 ]
 
 [[package]]
@@ -1417,88 +1489,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "protoc"
-version = "2.28.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0218039c514f9e14a5060742ecd50427f8ac4f85a6dc58f2ddb806e318c55ee"
-dependencies = [
- "log",
- "which",
-]
-
-[[package]]
-name = "protoc-bin-vendored"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd89a830d0eab2502c81a9b8226d446a52998bb78e5e33cb2637c0cdd6068d99"
-dependencies = [
- "protoc-bin-vendored-linux-aarch_64",
- "protoc-bin-vendored-linux-ppcle_64",
- "protoc-bin-vendored-linux-x86_32",
- "protoc-bin-vendored-linux-x86_64",
- "protoc-bin-vendored-macos-aarch_64",
- "protoc-bin-vendored-macos-x86_64",
- "protoc-bin-vendored-win32",
-]
-
-[[package]]
-name = "protoc-bin-vendored-linux-aarch_64"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f563627339f1653ea1453dfbcb4398a7369b768925eb14499457aeaa45afe22c"
-
-[[package]]
-name = "protoc-bin-vendored-linux-ppcle_64"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5025c949a02cd3b60c02501dd0f348c16e8fff464f2a7f27db8a9732c608b746"
-
-[[package]]
-name = "protoc-bin-vendored-linux-x86_32"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c9500ce67d132c2f3b572504088712db715755eb9adf69d55641caa2cb68a07"
-
-[[package]]
-name = "protoc-bin-vendored-linux-x86_64"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5462592380cefdc9f1f14635bcce70ba9c91c1c2464c7feb2ce564726614cc41"
-
-[[package]]
-name = "protoc-bin-vendored-macos-aarch_64"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c637745681b68b4435484543667a37606c95ddacf15e917710801a0877506030"
-
-[[package]]
-name = "protoc-bin-vendored-macos-x86_64"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38943f3c90319d522f94a6dfd4a134ba5e36148b9506d2d9723a82ebc57c8b55"
-
-[[package]]
-name = "protoc-bin-vendored-win32"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dc55d7dec32ecaf61e0bd90b3d2392d721a28b95cfd23c3e176eccefbeab2f2"
-
-[[package]]
-name = "protoc-rust"
-version = "2.28.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22f8a182bb17c485f20bdc4274a8c39000a61024cfe461c799b50fec77267838"
-dependencies = [
- "protobuf 2.28.0",
- "protobuf-codegen 2.28.0",
- "protoc",
- "tempfile",
-]
-
-[[package]]
 name = "protorune"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "1.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?branch=kungfuflex%2Fprost#87c572e9fd88450b146bcd525d26ed6dcf153965"
 dependencies = [
  "anyhow",
  "bitcoin 0.32.6",
@@ -1507,8 +1500,8 @@ dependencies = [
  "metashrew-core",
  "metashrew-support",
  "once_cell",
- "ordinals 0.5.2",
- "protobuf 3.7.2",
+ "ordinals 1.2.3",
+ "prost",
  "protorune-support",
  "ruint",
  "serde",
@@ -1519,19 +1512,17 @@ dependencies = [
 
 [[package]]
 name = "protorune-support"
-version = "0.5.2"
-source = "git+https://github.com/kungfuflex/alkanes-rs#f59b78b4e84e60690df5466ddba58c2b4613e01b"
+version = "1.2.3"
+source = "git+https://github.com/kungfuflex/alkanes-rs?branch=kungfuflex%2Fprost#87c572e9fd88450b146bcd525d26ed6dcf153965"
 dependencies = [
  "anyhow",
  "bech32 0.11.0",
  "bitcoin 0.32.6",
  "hex",
  "metashrew-support",
- "ordinals 0.5.2",
- "protobuf 3.7.2",
- "protobuf-codegen 3.7.2",
- "protoc-bin-vendored",
- "protoc-rust",
+ "ordinals 1.2.3",
+ "prost",
+ "prost-build",
  "serde",
 ]
 
@@ -1742,19 +1733,6 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.44"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdb5bc1ae2baa591800df16c9ca78619bf65c0488b41b96ccec5d11220d8c154"
-dependencies = [
- "bitflags",
- "errno",
- "libc",
- "linux-raw-sys 0.4.15",
- "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "rustix"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c71e83d6afe7ff64890ec6b71d6a69bb8a610ab78ce364b3352876bb4c801266"
@@ -1762,7 +1740,7 @@ dependencies = [
  "bitflags",
  "errno",
  "libc",
- "linux-raw-sys 0.9.4",
+ "linux-raw-sys",
  "windows-sys 0.59.0",
 ]
 
@@ -1959,6 +1937,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha2"
+version = "0.10.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7507d819769d01a365ab707794a4084392c824f54a7a6a7862f8c3d0892b283"
+dependencies = [
+ "cfg-if",
+ "cpufeatures",
+ "digest 0.10.7",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2036,7 +2025,7 @@ dependencies = [
  "fastrand",
  "getrandom 0.3.3",
  "once_cell",
- "rustix 1.0.7",
+ "rustix",
  "windows-sys 0.59.0",
 ]
 
@@ -2367,18 +2356,6 @@ checksum = "33b6dd2ef9186f1f2072e409e99cd22a975331a6b3591b12c764e0e55c60d5d2"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "which"
-version = "4.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87ba24419a2078cd2b0f2ede2691b6c66d8e47836da3b6db8265ebad47afbfc7"
-dependencies = [
- "either",
- "home",
- "once_cell",
- "rustix 0.38.44",
 ]
 
 [[package]]

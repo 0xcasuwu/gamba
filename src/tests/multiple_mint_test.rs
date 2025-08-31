@@ -21,13 +21,13 @@ use protorune::{test_helpers as protorune_helpers};
 use protorune_support::{balance_sheet::ProtoruneRuneId, protostone::{Protostone, ProtostoneEdict}};
 use protorune::protostone::Protostones;
 use metashrew_core::{println, stdio::stdout};
-use protobuf::Message;
 use alkanes::view;
-// use protobuf::Message; // Removed unused import
+use alkanes_support::proto::alkanes::AlkanesTrace;
+use prost::Message;
 
 use alkanes::precompiled::free_mint_build;
-use crate::tests::std::factory_build;
-use crate::tests::std::coupon_template_build;
+use crate::precompiled::factory_build;
+use crate::precompiled::coupon_template_build;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -103,7 +103,7 @@ fn test_coupon_template_direct() -> Result<()> {
     // Deploy coupon template only
     let template_block = alkane_helpers::init_with_multiple_cellpacks_with_tx(
         [
-            crate::tests::std::coupon_template_build::get_bytes(),
+            crate::precompiled::coupon_template_build::get_bytes(),
         ].into(),
         [
             vec![3u128, 0x601],  // Deploy coupon template at block 4, tx 0x601
@@ -178,7 +178,7 @@ fn test_coupon_template_direct() -> Result<()> {
             txid: coupon_block.txdata[0].compute_txid(),
             vout,
         })?;
-        let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
         let trace_guard = trace_result.0.lock().unwrap();
         if !trace_guard.is_empty() {
             println!("   - vout {}: {:?}", vout, *trace_guard);
@@ -209,7 +209,7 @@ fn test_coupon_template_deployment_only() -> Result<()> {
         txid: template_block.txdata[0].compute_txid(),
         vout: 3,
     })?;
-    let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+    let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
     let trace_guard = trace_result.0.lock().unwrap();
     println!("   • Template deployment trace: {:?}", *trace_guard);
 
@@ -326,7 +326,7 @@ fn test_free_mint_contract_minting() -> Result<()> {
                 
                 vout,
             })?;
-            let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+            let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
             let trace_guard = trace_result.0.lock().unwrap();
             if !trace_guard.is_empty() {
                 println!("     - vout {}: {:?}", vout, *trace_guard);
@@ -374,7 +374,7 @@ fn test_debug_factory_deployment_with_minting() -> Result<()> {
                 txid: tx.compute_txid(),
                 vout,
             })?;
-            let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+            let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
             let trace_guard = trace_result.0.lock().unwrap();
             if !trace_guard.is_empty() {
                 println!("     - vout {}: {:?}", vout, *trace_guard);
@@ -730,7 +730,7 @@ fn test_comprehensive_factory_integration() -> Result<()> {
                 txid: tx.compute_txid(),
                 vout,
             })?;
-            let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+            let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
             let trace_guard = trace_result.0.lock().unwrap();
             if !trace_guard.is_empty() {
                 println!("     - vout {}: {:?}", vout, *trace_guard);
@@ -887,7 +887,7 @@ fn test_factory_getter_calls() -> Result<()> {
             vout,
         };
         let threshold_trace_data = &view::trace(&threshold_outpoint)?;
-        let threshold_trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(threshold_trace_data)?.into();
+        let threshold_trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&threshold_trace_data[..])?.into();
         let threshold_trace_guard = threshold_trace_result.0.lock().unwrap();
         if !threshold_trace_guard.is_empty() {
             println!("   • Vout {} trace data: {:?}", vout, *threshold_trace_guard);
@@ -976,7 +976,7 @@ fn test_factory_getter_calls() -> Result<()> {
             vout,
         };
         let min_stake_trace_data = &view::trace(&min_stake_outpoint)?;
-        let min_stake_trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(min_stake_trace_data)?.into();
+        let min_stake_trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&min_stake_trace_data[..])?.into();
         let min_stake_trace_guard = min_stake_trace_result.0.lock().unwrap();
         if !min_stake_trace_guard.is_empty() {
             println!("   • Vout {} trace data: {:?}", vout, *min_stake_trace_guard);
@@ -1064,7 +1064,7 @@ fn test_factory_getter_calls() -> Result<()> {
             vout,
         };
         let template_id_trace_data = &view::trace(&template_id_outpoint)?;
-        let template_id_trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(template_id_trace_data)?.into();
+        let template_id_trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&template_id_trace_data[..])?.into();
         let template_id_trace_guard = template_id_trace_result.0.lock().unwrap();
         if !template_id_trace_guard.is_empty() {
             println!("   • Vout {} trace data: {:?}", vout, *template_id_trace_guard);
@@ -1333,7 +1333,7 @@ fn test_complete_deposit_to_coupon_flow() -> Result<()> {
             vout,
         };
         let deposit_trace_data = &view::trace(&deposit_outpoint)?;
-        let deposit_trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(deposit_trace_data)?.into();
+        let deposit_trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&deposit_trace_data[..])?.into();
         let deposit_trace_guard = deposit_trace_result.0.lock().unwrap();
         if !deposit_trace_guard.is_empty() {
             println!("   • vout {} trace data: {:?}", vout, *deposit_trace_guard);

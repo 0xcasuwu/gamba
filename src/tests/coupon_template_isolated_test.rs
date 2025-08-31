@@ -14,9 +14,10 @@ use std::str::FromStr;
 use alkanes::indexer::index_block;
 use alkanes::view;
 use anyhow::Result;
-use protobuf::Message;
 use ordinals::Runestone;
 use crate::tests::std::coupon_template_build;
+use alkanes_support::proto::alkanes::AlkanesTrace;
+use prost::Message;
 
 pub fn into_cellpack(v: Vec<u128>) -> Cellpack {
     Cellpack {
@@ -113,7 +114,7 @@ fn test_coupon_template_initialization() -> Result<()> {
             txid: coupon_block.txdata[0].compute_txid(),
             vout,
         })?;
-        let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
         let trace_guard = trace_result.0.lock().unwrap();
         if !trace_guard.is_empty() {
             println!("   • vout {}: {:?}", vout, *trace_guard);
@@ -263,7 +264,7 @@ fn test_coupon_template_getters() -> Result<()> {
             txid: getter_block.txdata[0].compute_txid(),
             vout,
         })?;
-        let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
         let trace_guard = trace_result.0.lock().unwrap();
         if !trace_guard.is_empty() {
             println!("   • vout {}: {:?}", vout, *trace_guard);
@@ -534,7 +535,7 @@ fn test_coupon_template_comprehensive_behavior() -> Result<()> {
             txid: successful_init_block.txdata[0].compute_txid(),
             vout,
         })?;
-        let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
         let trace_guard = trace_result.0.lock().unwrap();
         if !trace_guard.is_empty() {
             println!("   • vout {}: {:?}", vout, *trace_guard);
@@ -548,7 +549,7 @@ fn test_coupon_template_comprehensive_behavior() -> Result<()> {
             txid: double_init_block.txdata[0].compute_txid(),
             vout,
         })?;
-        let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
         let trace_guard = trace_result.0.lock().unwrap();
         if !trace_guard.is_empty() {
             println!("   • vout {}: {:?}", vout, *trace_guard);
@@ -562,7 +563,7 @@ fn test_coupon_template_comprehensive_behavior() -> Result<()> {
             txid: getter_block.txdata[0].compute_txid(),
             vout,
         })?;
-        let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
         let trace_guard = trace_result.0.lock().unwrap();
         if !trace_guard.is_empty() {
             println!("   • vout {}: {:?}", vout, *trace_guard);
@@ -576,7 +577,7 @@ fn test_coupon_template_comprehensive_behavior() -> Result<()> {
             txid: invalid_opcode_block.txdata[0].compute_txid(),
             vout,
         })?;
-        let trace_result: alkanes_support::trace::Trace = alkanes_support::proto::alkanes::AlkanesTrace::parse_from_bytes(trace_data)?.into();
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
         let trace_guard = trace_result.0.lock().unwrap();
         if !trace_guard.is_empty() {
             println!("   • vout {}: {:?}", vout, *trace_guard);
