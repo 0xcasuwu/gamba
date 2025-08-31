@@ -123,11 +123,76 @@ impl Token for CouponFactory {
 
 impl CouponFactory {
     fn redeem_coupon(&self, coupon_id: AlkaneId) -> Result<CallResponse> {
-        let _context = self.context()?;
-        // TODO: Implement coupon redemption logic
-        // For now, just return a successful response
-        Ok(CallResponse::default())
+        let context = self.context()?;
+        let mut response = CallResponse::default();
+
+        // Verify user is bringing in the actual coupon token
+        let incoming_coupon = context.incoming_alkanes.0.iter()
+            .find(|alkane| alkane.id == coupon_id)
+            .ok_or_else(|| anyhow!("Coupon token ({}, {}) not provided in transaction", 
+                coupon_id.block, coupon_id.tx))?;
+
+        if incoming_coupon.value != 1 {
+            return Err(anyhow!("Invalid coupon value: expected 1, got {}", incoming_coupon.value));
+        }
+
+        // Call the coupon template to get coupon details
+        let coupon_details = self.get_coupon_details(&coupon_id)?;
+        
+        // Verify the coupon is a winner
+        if !coupon_details.is_winner {
+            return Err(anyhow!("Coupon is not a winning coupon"));
+        }
+
+        // Check block timing constraint: can't redeem until creation_block + creation_block
+        let current_block = u128::from(self.height());
+        let min_redeem_block = coupon_details.creation_block + coupon_details.creation_block;
+        
+        if current_block < min_redeem_block {
+            return Err(anyhow!(
+                "Cannot redeem yet. Coupon created on block {}, can redeem on block {} (current: {})",
+                coupon_details.creation_block, min_redeem_block, current_block
+            ));
+        }
+
+        // Check if already redeemed
+        if self.is_coupon_redeemed(&coupon_id) {
+            return Err(anyhow!("Coupon has already been redeemed"));
+        }
+
+        // Calculate payout based on stake amount and bonus multipliers
+        let base_payout = coupon_details.stake_amount;
+        let bonus_multiplier = self.calculate_bonus_multiplier(coupon_details.final_result);
+        let total_payout = base_payout * bonus_multiplier;
+
+        println!("🎰 REDEEM: Coupon {} payout: {} (base: {}, multiplier: {}x)", 
+            format!("({}, {})", coupon_id.block, coupon_id.tx),
+            total_payout, base_payout, bonus_multiplier);
+
+        // Mark coupon as redeemed
+        self.mark_coupon_redeemed(&coupon_id)?;
+
+        // Create payout token (free mint at original token ID)
+        let payout_token = AlkaneTransfer {
+            id: AlkaneId { block: 2, tx: 1 }, // Original DUST token
+            value: total_payout,
+        };
+
+        response.alkanes.0.push(payout_token);
+        Ok(response)
     }
+
+    /// Calculate bonus multiplier based on final XOR result
+    fn calculate_bonus_multiplier(&self, final_result: u8) -> u128 {
+        match final_result {
+            250..=255 => 10,  // Jackpot: 10x multiplier
+            240..=249 => 5,   // Big win: 5x multiplier  
+            220..=239 => 3,   // Good win: 3x multiplier
+            200..=219 => 2,   // Small win: 2x multiplier
+            _ => 1,           // Regular win: 1x multiplier
+        }
+    }
+
     fn initialize(
         &self,
         success_threshold: u128,
