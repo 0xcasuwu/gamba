@@ -197,10 +197,13 @@ impl CouponFactory {
         // Calculate winning vs losing pots
         for coupon_id in &block_coupons {
             let details = self.get_coupon_details(coupon_id)?;
+            println!("🎲 COUPON {:?}: stake={}, is_winner={}", coupon_id, details.stake_amount, details.is_winner);
             if details.is_winner {
                 total_winning_deposits += details.stake_amount;
+                println!("   → Added {} to WINNING pot", details.stake_amount);
             } else {
                 total_losing_deposits += details.stake_amount;
+                println!("   → Added {} to LOSING pot", details.stake_amount);
             }
         }
         
@@ -280,12 +283,13 @@ impl CouponFactory {
         let _context = self.context()?;
         let response = CallResponse::default();
 
-        println!("🔍 DEBUG: Factory initialize called with success_threshold: {}, coupon_token_template_id: {:?}", success_threshold, coupon_token_template_id);
+        println!("🏭 FACTORY INIT: success_threshold={}, coupon_template={:?}", success_threshold, coupon_token_template_id);
 
         self.observe_initialization()?;
 
         // Store all parameters
         self.set_success_threshold(success_threshold as u8);
+        println!("✅ STORED THRESHOLD: {} (verify: {})", success_threshold as u8, self.success_threshold());
         self.set_coupon_token_template_id(&coupon_token_template_id)?;
 
         // Initialize counters
@@ -316,9 +320,10 @@ impl CouponFactory {
 
         // Check success threshold
         let success_threshold = self.success_threshold();
+        let is_winner = (final_result as u128) > (success_threshold as u128);
         println!("🎯 WINNER DECISION: final_result={}, success_threshold={}, is_winner={}", 
-                 final_result, success_threshold, final_result > success_threshold);
-        if final_result > success_threshold {
+                 final_result, success_threshold, is_winner);
+        if is_winner {
             // Successful gamble - create winning coupon token
             let coupon_token = self.create_coupon_token(
                 stake_amount,
