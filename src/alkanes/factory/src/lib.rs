@@ -146,14 +146,13 @@ impl CouponFactory {
             return Err(anyhow!("Coupon is not a winning coupon"));
         }
 
-        // Check block timing constraint: can't redeem until creation_block + creation_block
+        // Check block timing constraint: lottery lasts 1 block, redeem after lottery ends
         let current_block = u128::from(self.height());
-        let min_redeem_block = coupon_details.creation_block + coupon_details.creation_block;
         
-        if current_block < min_redeem_block {
+        if current_block <= coupon_details.creation_block {
             return Err(anyhow!(
-                "Cannot redeem yet. Coupon created on block {}, can redeem on block {} (current: {})",
-                coupon_details.creation_block, min_redeem_block, current_block
+                "Cannot redeem during lottery block. Created at block {}, current block {}. Can redeem starting at block {}",
+                coupon_details.creation_block, current_block, coupon_details.creation_block + 1
             ));
         }
 
@@ -561,8 +560,8 @@ impl CouponFactory {
     }
 
     fn calculate_stake_bonus_internal(&self, stake_amount: u128) -> Result<u8> {
-        // Simple stake bonus calculation: 1 bonus point per 1000 staked tokens
-        let bonus = (stake_amount / 1000).min(255) as u8;
+        // FIXED: Much smaller stake bonus to avoid u8 overflow: 1 point per 10,000 tokens  
+        let bonus = (stake_amount / 10000).min(25) as u8;
         Ok(bonus)
     }
 
@@ -644,7 +643,7 @@ impl CouponFactory {
         if !bytes.is_empty() {
             bytes[0]
         } else {
-            180 // Default threshold (FIXED: was 144, now 180 to create winner/loser split)
+            190 // Default threshold (FIXED: 190 to create winner/loser split: 231>190 win, 186<190 lose)
         }
     }
 

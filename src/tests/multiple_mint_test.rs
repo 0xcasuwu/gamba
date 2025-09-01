@@ -708,7 +708,7 @@ fn test_comprehensive_factory_integration() -> Result<()> {
         ],
     }]);
     
-    index_block(&deposit_block, 10)?;
+    index_block(&deposit_block, 1000)?; // FORCE BRAND NEW COUPONS AT BLOCK 1000
     
     println!("✅ CreateCoupon transaction submitted at block 10");
     println!("   • Factory contract: {:?}", factory_contract_id);
@@ -891,7 +891,7 @@ fn test_comprehensive_factory_integration() -> Result<()> {
                 }
             ],
         }]);
-        index_block(&second_user_deposit_block, 10)?; // Block 10 - SAME AS FIRST USER
+        index_block(&second_user_deposit_block, 1000)?; // Block 1000 - BRAND NEW COUPONS
         
         // PHASE 6.6: Extract USER 2's coupon token to verify it was created at block 10
         println!("\n🔍 PHASE 6.6: Extracting USER 2's Coupon Token");
@@ -995,7 +995,7 @@ fn test_comprehensive_factory_integration() -> Result<()> {
                 }
             ],
         }]);
-        index_block(&redemption_block, 20)?; // Block 20 satisfies timing constraint
+        index_block(&redemption_block, 1001)?; // Block 1001 - lottery at 1000 ends, redemption starts at 1001
 
         // PHASE 8: ANALYZE REDEMPTION TRACES FOR POT DISTRIBUTION DEBUG
         println!("\n🔍 PHASE 8: ANALYZING REDEMPTION TRACES FOR POT DISTRIBUTION:");
@@ -1672,7 +1672,7 @@ fn test_complete_deposit_to_coupon_flow() -> Result<()> {
             }
         ],
     }]);
-    index_block(&deposit_block, 10)?;
+    index_block(&deposit_block, 1000)?; // FORCE BRAND NEW COUPONS AT BLOCK 1000
     println!("✅ CreateCoupon transaction submitted at block 10");
 
     // PHASE 6: Analyze Results
