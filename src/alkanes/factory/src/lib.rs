@@ -442,27 +442,37 @@ impl CouponFactory {
     }
 
     fn calculate_base_xor_internal(&self) -> Result<u8> {
-        // Enhanced XOR calculation using merkle root and transaction ID
-        // This provides much stronger entropy than the previous simple method
+        // Enhanced XOR calculation with PER-TRANSACTION entropy
+        // This ensures different users at same block get different randomness
         
-        // Get the current transaction ID
+        // Get the current transaction ID (unique per transaction)
         let txid = self.transaction_id()?;
         
         // Get the merkle root for this block
         let merkle_root = self.merkle_root()?;
         
-        // Extract bytes from both sources
+        // Get current coupon ID as additional per-user entropy
+        let coupon_count = self.total_coupons();
+        
+        // Extract bytes from all sources
         let txid_bytes = txid.as_byte_array();
         let merkle_bytes = merkle_root.as_byte_array();
         
         // XOR the last bytes of both for primary randomness
         let base_xor = txid_bytes[31] ^ merkle_bytes[31];
         
-        // Add additional entropy from middle bytes to make it more unpredictable
+        // Add additional entropy from middle bytes
         let entropy_xor = txid_bytes[15] ^ merkle_bytes[15];
         
-        // Combine both sources with modular arithmetic to stay in u8 range
-        let final_xor = base_xor.wrapping_add(entropy_xor);
+        // CRITICAL: Add per-user entropy using coupon count
+        // This makes each user at same block get different randomness
+        let user_entropy = (coupon_count as u8).wrapping_mul(7); // Prime multiplier
+        
+        // Combine all sources with modular arithmetic to stay in u8 range
+        let final_xor = base_xor.wrapping_add(entropy_xor).wrapping_add(user_entropy);
+        
+        println!("🎲 ENTROPY: base_xor={}, entropy_xor={}, user_entropy={}, final_xor={}", 
+                 base_xor, entropy_xor, user_entropy, final_xor);
         
         Ok(final_xor)
     }

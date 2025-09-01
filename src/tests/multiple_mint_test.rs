@@ -893,12 +893,45 @@ fn test_comprehensive_factory_integration() -> Result<()> {
         }]);
         index_block(&second_user_deposit_block, 10)?; // Block 10 - SAME AS FIRST USER
         
+        // PHASE 6.6: Extract USER 2's coupon token to verify it was created at block 10
+        println!("\n🔍 PHASE 6.6: Extracting USER 2's Coupon Token");
+        let mut user2_coupon_id: Option<AlkaneId> = None;
+        
+        for vout in 0..6 {
+            let trace_data = &view::trace(&OutPoint {
+                txid: second_user_deposit_block.txdata[0].compute_txid(),
+                vout,
+            })?;
+            let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
+            let trace_guard = trace_result.0.lock().unwrap();
+
+            if !trace_guard.is_empty() {
+                for entry in trace_guard.iter() {
+                    match entry {
+                        alkanes_support::trace::TraceEvent::CreateAlkane(alkane_id) => {
+                            user2_coupon_id = Some(alkane_id.clone());
+                            println!("     ✅ USER 2 COUPON TOKEN: ({}, {})", alkane_id.block, alkane_id.tx);
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        let user2_coupon = user2_coupon_id.unwrap_or(AlkaneId { block: 0, tx: 0 });
+        
         println!("✅ SECOND USER created at block 10 (50,000 tokens - LOSER)");
         println!("📊 MULTI-USER LOTTERY SETUP:");
-        println!("   • USER 1: 100,000 tokens (WINNER) → Coupon {:?}", coupon_id);
-        println!("   • USER 2: 50,000 tokens (LOSER)");
+        println!("   • USER 1: 100,000 tokens (WINNER) → Coupon {:?} at block 10", coupon_id);
+        println!("   • USER 2: 50,000 tokens (LOSER) → Coupon {:?} at block 10", user2_coupon);
         println!("   • Total pot: 150,000 tokens");
         println!("   • Expected USER 1 payout: 100,000 + 50,000 = 150,000 tokens");
+        
+        if user2_coupon.block == 0 {
+            println!("   ❌ WARNING: USER 2's coupon token not found - this could explain pot issue!");
+        } else {
+            println!("   ✅ Both coupons created - ready for pot distribution test");
+        }
 
         // PHASE 7: REDEMPTION WITH COUPON TOKEN (BOILER PATTERN)
         println!("\n🎰 PHASE 7: REDEMPTION WITH MULTI-USER LOTTERY");
@@ -964,8 +997,8 @@ fn test_comprehensive_factory_integration() -> Result<()> {
         }]);
         index_block(&redemption_block, 20)?; // Block 20 satisfies timing constraint
 
-        // PHASE 8: ANALYZE REDEMPTION TRACES FOR PAYOUT EVIDENCE
-        println!("\n🔍 PHASE 8: ANALYZING REDEMPTION TRACES FOR PAYOUT:");
+        // PHASE 8: ANALYZE REDEMPTION TRACES FOR POT DISTRIBUTION DEBUG
+        println!("\n🔍 PHASE 8: ANALYZING REDEMPTION TRACES FOR POT DISTRIBUTION:");
         let mut total_payout_received = 0u128;
 
         for vout in 0..6 {
@@ -977,7 +1010,21 @@ fn test_comprehensive_factory_integration() -> Result<()> {
             let trace_guard = trace_result.0.lock().unwrap();
 
             if !trace_guard.is_empty() {
+                let trace_str = format!("{:?}", *trace_guard);
                 println!("   📊 REDEMPTION vout {} trace: {:?}", vout, *trace_guard);
+
+                // Look for POT CALCULATION debug output in traces
+                if trace_str.contains("POT CALCULATION") || trace_str.contains("Total winning deposits") {
+                    println!("   🎯 POT DISTRIBUTION DEBUG FOUND IN TRACE!");
+                }
+                
+                if trace_str.contains("Total losing deposits: 0") {
+                    println!("   ❌ ISSUE: Total losing deposits is 0 - USER 2's coupon not found!");
+                }
+                
+                if trace_str.contains("Total losing deposits: 50000") {
+                    println!("   ✅ SUCCESS: USER 2's 50,000 tokens found in losing pot!");
+                }
 
                 for entry in trace_guard.iter() {
                     match entry {
