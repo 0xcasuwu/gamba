@@ -639,8 +639,61 @@ fn test_comprehensive_factory_integration() -> Result<()> {
     println!("\n🎫 PHASE 5: Testing CreateCoupon (opcode 1)");
     let deposit_amount = 5000u128;
     
-    // Get available tokens from the mint outpoint
-    let available_tokens = mint_sheet.get(&minted_token_id);
+    // PHASE 5.1: CREATE FRESH MINT OUTPOINT FOR USER 1 (1-BLOCK LOTTERY SETUP)
+    println!("\n🎰 PHASE 5.1: Creating Fresh Mint Outpoint for USER 1");
+    let user1_fresh_mint_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+        version: Version::ONE,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::null(),
+            script_sig: ScriptBuf::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new()
+        }],
+        output: vec![
+            TxOut {
+                script_pubkey: Address::from_str(ADDRESS1().as_str())
+                    .unwrap()
+                    .require_network(get_btc_network())
+                    .unwrap()
+                    .script_pubkey(),
+                value: Amount::from_sat(546),
+            },
+            TxOut {
+                script_pubkey: (Runestone {
+                    edicts: vec![],
+                    etching: None,
+                    mint: None,
+                    pointer: None,
+                    protocol: Some(
+                        vec![
+                            Protostone {
+                                message: into_cellpack(vec![
+                                    2u128, 797u128, 77u128, // Free-mint tokens for USER 1
+                                ]).encipher(),
+                                protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                pointer: Some(0),
+                                refund: Some(0),
+                                from: None,
+                                burn: None,
+                                edicts: vec![],
+                            }
+                        ].encipher()?
+                    )
+                }).encipher(),
+                value: Amount::from_sat(546)
+            }
+        ],
+    }]);
+    index_block(&user1_fresh_mint_block, 998)?; // USER 1 fresh mint at block 998
+    
+    // Get available tokens from USER 1's fresh mint outpoint
+    let user1_mint_outpoint = OutPoint {
+        txid: user1_fresh_mint_block.txdata[0].compute_txid(),
+        vout: 0,
+    };
+    let mint_sheet = load_sheet(&user1_mint_outpoint)?;
+    let available_tokens = mint_sheet.get(&AlkaneId { block: 2, tx: 1 });
     
     println!("🔍 Available tokens at mint outpoint: {}", available_tokens);
     println!("🎯 Deposit amount: {}", deposit_amount);
@@ -655,7 +708,10 @@ fn test_comprehensive_factory_integration() -> Result<()> {
         version: Version::ONE,
         lock_time: bitcoin::absolute::LockTime::ZERO,
         input: vec![TxIn {
-            previous_output: mint_outpoint,  // 🔑 CRITICAL: Reference the mint outpoint
+            previous_output: OutPoint {  // 🔑 USER 1: Use fresh mint outpoint from block 998
+                txid: user1_fresh_mint_block.txdata[0].compute_txid(),
+                vout: 0,
+            },
             script_sig: ScriptBuf::new(),
             sequence: Sequence::from_height(10),
             witness: Witness::new()
@@ -789,10 +845,10 @@ fn test_comprehensive_factory_integration() -> Result<()> {
     if let Some(coupon_id) = created_coupon_id {
         println!("✅ COUPON TOKEN FOUND: {:?}", coupon_id);
 
-        // PHASE 6.5: CREATE SECOND USER FOR MULTI-USER LOTTERY (SIMPLE APPROACH)
-        println!("\n👥 PHASE 6.5: Creating Second User for Multi-User Lottery");
+        // PHASE 6.5: CREATE FRESH MINT OUTPOINT FOR USER 2 (1-BLOCK LOTTERY)
+        println!("\n👥 PHASE 6.5: Creating Fresh Mint Outpoint for USER 2");
         
-        // Create second user deposit at same block (block 10) with fresh tokens
+        // USER 2: Create fresh mint outpoint at block 999  
         let second_user_mint_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
             version: Version::ONE,
             lock_time: bitcoin::absolute::LockTime::ZERO,
@@ -835,9 +891,9 @@ fn test_comprehensive_factory_integration() -> Result<()> {
                 }
             ],
         }]);
-        index_block(&second_user_mint_block, 7)?; // Block 7 for minting
+        index_block(&second_user_mint_block, 999)?; // USER 2 fresh mint at block 999
         
-        // Second user deposit at block 10 (same as first user)
+        // 🎰 1-BLOCK LOTTERY: Both users deposit at block 1000 with separate fresh mint outpoints
         let second_user_deposit_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
             version: Version::ONE,
             lock_time: bitcoin::absolute::LockTime::ZERO,
