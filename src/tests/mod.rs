@@ -20,4 +20,5 @@ pub mod multi_user_pot_distribution_test;
 pub mod complete_payout_demonstration;
 pub mod working_redemption_with_payout;
 pub mod multi_user_lottery_win_demonstration;
+pub mod proven_multi_user_lottery;
 // pub mod coupon_utils;
