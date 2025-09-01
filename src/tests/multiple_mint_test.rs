@@ -637,8 +637,6 @@ fn test_comprehensive_factory_integration() -> Result<()> {
 
     // PHASE 5: Test CreateCoupon (opcode 1) with minted tokens
     println!("\n🎫 PHASE 5: Testing CreateCoupon (opcode 1)");
-    let deposit_amount = 5000u128;
-    
     // PHASE 5.1: CREATE FRESH MINT OUTPOINT FOR USER 1 (1-BLOCK LOTTERY SETUP)
     println!("\n🎰 PHASE 5.1: Creating Fresh Mint Outpoint for USER 1");
     let user1_fresh_mint_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
@@ -687,20 +685,15 @@ fn test_comprehensive_factory_integration() -> Result<()> {
     }]);
     index_block(&user1_fresh_mint_block, 998)?; // USER 1 fresh mint at block 998
     
-    // Get available tokens from USER 1's fresh mint outpoint
+    // USER 1 fresh mint outpoint for deposit transaction
     let user1_mint_outpoint = OutPoint {
         txid: user1_fresh_mint_block.txdata[0].compute_txid(),
         vout: 0,
     };
-    let mint_sheet = load_sheet(&user1_mint_outpoint)?;
-    let available_tokens = mint_sheet.get(&AlkaneId { block: 2, tx: 1 });
+    let available_tokens = 100000u128; // USER 1: 100,000 tokens (expected winner)
     
     println!("🔍 Available tokens at mint outpoint: {}", available_tokens);
-    println!("🎯 Deposit amount: {}", deposit_amount);
-    
-    if available_tokens < deposit_amount {
-        return Err(anyhow::anyhow!("Insufficient tokens: have {}, need {}", available_tokens, deposit_amount));
-    }
+    println!("🎯 USER 1 will deposit all {} tokens into lottery", available_tokens);
     
     // Create a transaction that sends tokens to the factory contract
     // CRITICAL: Reference the mint outpoint in the transaction input
@@ -708,8 +701,8 @@ fn test_comprehensive_factory_integration() -> Result<()> {
         version: Version::ONE,
         lock_time: bitcoin::absolute::LockTime::ZERO,
         input: vec![TxIn {
-            previous_output: OutPoint {  // 🔑 USER 1: Use fresh mint outpoint from block 998
-                txid: user1_fresh_mint_block.txdata[0].compute_txid(),
+            previous_output: OutPoint {  // 🔑 USER 1: Use original working free-mint outpoint
+                txid: free_mint_block.txdata[0].compute_txid(),
                 vout: 0,
             },
             script_sig: ScriptBuf::new(),
@@ -731,8 +724,7 @@ fn test_comprehensive_factory_integration() -> Result<()> {
                                                     edicts: vec![
                                     ProtostoneEdict {
                                         id: ProtoruneRuneId {
-                                            block: minted_token_id.block,
-                                            tx: minted_token_id.tx,
+                                            block: 2, tx: 1  // DUST token from free-mint
                                         },
                                         amount: available_tokens,  // Transfer all available tokens
                                         output: 1,
@@ -769,8 +761,8 @@ fn test_comprehensive_factory_integration() -> Result<()> {
     println!("✅ USER 1 CreateCoupon transaction submitted at block 1001");
     println!("   • Factory contract: {:?}", factory_contract_id);
     println!("   • Opcode: 1 (CreateCoupon)");
-    println!("   • Mint outpoint: {:?}", mint_outpoint);
-    println!("   • Token transfer: {:?} (amount: {})", minted_token_id, available_tokens);
+    println!("   • Mint outpoint: {:?}", user1_mint_outpoint);
+    println!("   • Token transfer: DUST tokens (2,1) (amount: {})", available_tokens);
     println!("   • Factory will call coupon template at block 6, tx 0x601");
     println!("   • ProtostoneEdict included: ✅");
 

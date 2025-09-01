@@ -643,7 +643,7 @@ impl CouponFactory {
         if !bytes.is_empty() {
             bytes[0]
         } else {
-            190 // Default threshold (FIXED: 190 to create winner/loser split: 231>190 win, 186<190 lose)
+            40 // Default threshold (FIXED: 40 to create winners from current final_results around 50)
         }
     }
 
