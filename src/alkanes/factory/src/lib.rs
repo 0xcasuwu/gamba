@@ -316,6 +316,8 @@ impl CouponFactory {
 
         // Check success threshold
         let success_threshold = self.success_threshold();
+        println!("🎯 WINNER DECISION: final_result={}, success_threshold={}, is_winner={}", 
+                 final_result, success_threshold, final_result > success_threshold);
         if final_result > success_threshold {
             // Successful gamble - create winning coupon token
             let coupon_token = self.create_coupon_token(
