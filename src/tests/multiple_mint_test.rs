@@ -756,6 +756,179 @@ fn test_comprehensive_factory_integration() -> Result<()> {
     println!("   • CreateCoupon: block 10 (opcode 1)");
     println!("   • Factory external call: block 6, tx 0x601 (targets coupon template at block 4, tx 0x601)");
 
+    // PHASE 6: EXTRACT COUPON TOKEN AND DEMONSTRATE REDEMPTION WITH PAYOUT
+    println!("\n💰 PHASE 6: EXTRACT COUPON TOKEN & REDEMPTION WITH PAYOUT");
+    println!("=========================================================");
+    
+    // Extract the created coupon token from traces
+    let mut created_coupon_id: Option<AlkaneId> = None;
+    for (i, tx) in deposit_block.txdata.iter().enumerate() {
+        println!("   🔍 Analyzing TX {} for coupon creation:", i);
+        for vout in 0..6 {
+            let trace_data = &view::trace(&OutPoint {
+                txid: tx.compute_txid(),
+                vout,
+            })?;
+            let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
+            let trace_guard = trace_result.0.lock().unwrap();
+
+            if !trace_guard.is_empty() {
+                for entry in trace_guard.iter() {
+                    match entry {
+                        alkanes_support::trace::TraceEvent::CreateAlkane(alkane_id) => {
+                            created_coupon_id = Some(alkane_id.clone());
+                            println!("     ✅ CAPTURED COUPON TOKEN: ({}, {})", alkane_id.block, alkane_id.tx);
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(coupon_id) = created_coupon_id {
+        println!("✅ COUPON TOKEN FOUND: {:?}", coupon_id);
+
+        // PHASE 7: REDEMPTION WITH COUPON TOKEN (BOILER PATTERN)
+        println!("\n🎰 PHASE 7: REDEMPTION WITH ACTUAL COUPON TOKEN");
+        
+        let coupon_outpoint = OutPoint {
+            txid: deposit_block.txdata[0].compute_txid(),
+            vout: 0,
+        };
+        
+        println!("🔍 Using coupon outpoint: {:?}", coupon_outpoint);
+        println!("🎫 Bringing in coupon token: ({}, {}) with amount 1", coupon_id.block, coupon_id.tx);
+        
+        let redemption_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+            version: Version::ONE,
+            lock_time: bitcoin::absolute::LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: coupon_outpoint, // CRITICAL: Bring in the coupon
+                script_sig: ScriptBuf::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::new()
+            }],
+            output: vec![
+                TxOut {
+                    script_pubkey: Address::from_str(ADDRESS1().as_str())
+                        .unwrap()
+                        .require_network(get_btc_network())
+                        .unwrap()
+                        .script_pubkey(),
+                    value: Amount::from_sat(546),
+                },
+                TxOut {
+                    script_pubkey: (Runestone {
+                        edicts: vec![],
+                        etching: None,
+                        mint: None,
+                        pointer: None,
+                        protocol: Some(
+                            vec![
+                                Protostone {
+                                    message: into_cellpack(vec![
+                                        4u128, 1793u128, 2u128, // RedeemCoupon opcode
+                                        coupon_id.block, coupon_id.tx, // Pass coupon ID
+                                    ]).encipher(),
+                                    protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                    pointer: Some(0),
+                                    refund: Some(0),
+                                    from: None,
+                                    burn: None,
+                                    edicts: vec![
+                                        ProtostoneEdict {
+                                            id: ProtoruneRuneId { block: coupon_id.block, tx: coupon_id.tx },
+                                            amount: 1, // Bring the coupon token
+                                            output: 0, // Send to factory call
+                                        }
+                                    ],
+                                }
+                            ].encipher()?
+                        )
+                    }).encipher(),
+                    value: Amount::from_sat(546)
+                }
+            ],
+        }]);
+        index_block(&redemption_block, 20)?; // Block 20 satisfies timing constraint
+
+        // PHASE 8: ANALYZE REDEMPTION TRACES FOR PAYOUT EVIDENCE
+        println!("\n🔍 PHASE 8: ANALYZING REDEMPTION TRACES FOR PAYOUT:");
+        let mut total_payout_received = 0u128;
+
+        for vout in 0..6 {
+            let trace_data = &view::trace(&OutPoint {
+                txid: redemption_block.txdata[0].compute_txid(),
+                vout,
+            })?;
+            let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
+            let trace_guard = trace_result.0.lock().unwrap();
+
+            if !trace_guard.is_empty() {
+                println!("   📊 REDEMPTION vout {} trace: {:?}", vout, *trace_guard);
+
+                for entry in trace_guard.iter() {
+                    match entry {
+                        alkanes_support::trace::TraceEvent::ReturnContext(return_ctx) => {
+                            if !return_ctx.inner.alkanes.0.is_empty() {
+                                for alkane in return_ctx.inner.alkanes.0.iter() {
+                                    total_payout_received += alkane.value;
+                                    println!("   💰 PAYOUT RECEIVED: {} tokens of ({}, {})", 
+                                        alkane.value, alkane.id.block, alkane.id.tx);
+                                }
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        // PHASE 9: BALANCE SHEET VERIFICATION  
+        println!("\n💰 PHASE 9: BALANCE SHEET VERIFICATION");
+        let redemption_outpoint = OutPoint {
+            txid: redemption_block.txdata[0].compute_txid(),
+            vout: 0,
+        };
+        
+        let redemption_sheet = load_sheet(
+            &RuneTable::for_protocol(AlkaneMessageContext::protocol_tag())
+                .OUTPOINT_TO_RUNES
+                .select(&consensus_encode(&redemption_outpoint)?)
+        );
+        
+        let mut total_balance_received = 0u128;
+        for (id, amount) in redemption_sheet.balances().iter() {
+            println!("   💰 Balance received - Token ID: {:?}, Amount: {}", id, amount);
+            total_balance_received += amount;
+        }
+
+        println!("\n🎊 REDEMPTION WITH PAYOUT RESULTS:");
+        println!("=================================");
+        println!("✅ Original deposit: {} tokens", available_tokens);
+        println!("✅ Coupon created: {:?}", coupon_id);
+        
+        let max_payout = std::cmp::max(total_payout_received, total_balance_received);
+        if max_payout > 0 {
+            println!("✅ TOTAL PAYOUT RECEIVED: {} tokens", max_payout);
+            
+            if max_payout > available_tokens {
+                println!("✅ PROFIT: {} tokens", max_payout - available_tokens);
+                println!("🎉 🎉 🎉 SUCCESS: USER RECEIVED DEPOSIT + WINNINGS WITH TRACE CITATIONS! 🎉 🎉 🎉");
+            } else if max_payout == available_tokens {
+                println!("✅ BREAK-EVEN: User received original deposit back");
+            } else {
+                println!("⚠️ PARTIAL PAYOUT: {} tokens received (less than original)", max_payout);
+            }
+        } else {
+            println!("❌ No payout received - redemption may have failed validation");
+        }
+
+    } else {
+        println!("❌ No coupon token found in traces - cannot demonstrate redemption");
+    }
+
     Ok(())
 }
 
