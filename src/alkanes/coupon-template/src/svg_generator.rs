@@ -5,7 +5,7 @@ pub struct CouponData {
     pub coupon_id: u128,
     pub stake_amount: u128,
     pub base_xor: u8,
-    pub stake_bonus: u8,
+
     pub final_result: u8,
     pub creation_block: u128,
     pub current_block: u128,
@@ -22,7 +22,7 @@ impl SvgGenerator {
             coupon_id,
             stake_amount,
             base_xor,
-            stake_bonus,
+
             final_result,
             creation_block,
             current_block,
@@ -112,7 +112,7 @@ impl SvgGenerator {
     Result: {final_result} | Stake: {stake_amount}
   </text>
   <text x="70" y="555" font-family="monospace" font-size="12" fill="{light_gray_color}">
-    XOR: {base_xor} | Bonus: +{stake_bonus}
+    XOR: {base_xor}
   </text>
   <text x="70" y="570" font-family="monospace" font-size="10" fill="{gray_color}">
     Block: {creation_block}
@@ -140,7 +140,7 @@ impl SvgGenerator {
             final_result = final_result,
             stake_amount = stake_amount,
             base_xor = base_xor,
-            stake_bonus = stake_bonus,
+
             creation_block = creation_block,
         );
 
@@ -328,7 +328,7 @@ impl SvgGenerator {
             coupon_id,
             stake_amount,
             base_xor,
-            stake_bonus,
+
             final_result,
             creation_block,
             current_block,
@@ -365,10 +365,7 @@ impl SvgGenerator {
       "trait_type": "Base XOR",
       "value": {}
     }},
-    {{
-      "trait_type": "Stake Bonus",
-      "value": {}
-    }},
+
     {{
       "trait_type": "Final Result",
       "value": {}
@@ -394,7 +391,7 @@ impl SvgGenerator {
             final_result,
             stake_amount,
             base_xor,
-            stake_bonus,
+
             final_result,
             creation_block,
             age,
@@ -442,7 +439,7 @@ mod tests {
             coupon_id: 1,
             stake_amount: 5000,
             base_xor: 200,
-            stake_bonus: 25,
+
             final_result: 225,
             creation_block: 1000,
             current_block: 1100,
@@ -463,7 +460,7 @@ mod tests {
             coupon_id: 1,
             stake_amount: 5000,
             base_xor: 200,
-            stake_bonus: 25,
+
             final_result: 225,
             creation_block: 1000,
             current_block: 1100,

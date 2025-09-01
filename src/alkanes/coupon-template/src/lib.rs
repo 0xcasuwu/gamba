@@ -90,7 +90,7 @@ enum CouponTokenMessage {
         coupon_id: u128,
         stake_amount: u128,
         base_xor: u128,
-        stake_bonus: u128,
+
         final_result: u128,
         is_winner: u128,
         creation_block: u128,
@@ -110,9 +110,7 @@ enum CouponTokenMessage {
     #[returns(CallResponse)]
     GetBaseXor,
 
-    #[opcode(13)]
-    #[returns(CallResponse)]
-    GetStakeBonus,
+
 
     #[opcode(14)]
     #[returns(CallResponse)]
@@ -196,7 +194,7 @@ impl CouponToken {
         coupon_id: u128,
         stake_amount: u128,
         base_xor: u128,
-        stake_bonus: u128,
+
         final_result: u128,
         is_winner: u128,
         creation_block: u128,
@@ -223,7 +221,7 @@ impl CouponToken {
         self.set_coupon_id(coupon_id);
         self.set_stake_amount(stake_amount);
         self.set_base_xor(base_xor as u8);
-        self.set_stake_bonus(stake_bonus as u8);
+
         self.set_final_result(final_result as u8);
         self.set_is_winner(is_winner != 0);
         self.set_creation_block(creation_block);
@@ -280,9 +278,7 @@ impl CouponToken {
         self.base_xor()
     }
 
-    fn get_stake_bonus_internal(&self) -> u8 {
-        self.stake_bonus()
-    }
+
 
     fn get_final_result_internal(&self) -> u8 {
         self.final_result()
@@ -304,18 +300,18 @@ impl CouponToken {
         let coupon_id = self.get_coupon_id_internal();
         let stake_amount = self.get_stake_amount_internal();
         let base_xor = self.get_base_xor_internal() as u128;
-        let stake_bonus = self.get_stake_bonus_internal() as u128;
+
         let final_result = self.get_final_result_internal() as u128;
         let creation_block = self.get_creation_block_internal();
         let is_winner = if self.is_winner_internal() { 1u128 } else { 0u128 };
 
         // Pack all values into a single byte array
-        // Each value is 16 bytes (128 bits) - 7 values total
-        let mut data = Vec::with_capacity(16 * 7);
+        // Each value is 16 bytes (128 bits) - 6 values total (no stake_bonus)
+        let mut data = Vec::with_capacity(16 * 6);
         data.extend_from_slice(&coupon_id.to_le_bytes());
         data.extend_from_slice(&stake_amount.to_le_bytes());
         data.extend_from_slice(&base_xor.to_le_bytes());
-        data.extend_from_slice(&stake_bonus.to_le_bytes());
+
         data.extend_from_slice(&final_result.to_le_bytes());
         data.extend_from_slice(&creation_block.to_le_bytes());
         data.extend_from_slice(&is_winner.to_le_bytes());
@@ -414,17 +410,7 @@ impl CouponToken {
         self.base_xor_pointer().set_value::<u8>(base_xor);
     }
 
-    fn stake_bonus_pointer(&self) -> StoragePointer {
-        StoragePointer::from_keyword("/stake_bonus")
-    }
 
-    fn stake_bonus(&self) -> u8 {
-        self.stake_bonus_pointer().get_value::<u8>()
-    }
-
-    fn set_stake_bonus(&self, stake_bonus: u8) {
-        self.stake_bonus_pointer().set_value::<u8>(stake_bonus);
-    }
 
     fn final_result_pointer(&self) -> StoragePointer {
         StoragePointer::from_keyword("/final_result")
@@ -493,7 +479,7 @@ impl CouponToken {
             coupon_id: self.coupon_id(),
             stake_amount: self.stake_amount(),
             base_xor: self.base_xor(),
-            stake_bonus: self.stake_bonus(),
+
             final_result: self.final_result(),
             creation_block: self.creation_block(),
             current_block: u128::from(self.height()),
@@ -528,7 +514,7 @@ impl CouponToken {
             coupon_id: self.coupon_id(),
             stake_amount: self.stake_amount(),
             base_xor: self.base_xor(),
-            stake_bonus: self.stake_bonus(),
+
             final_result: self.final_result(),
             creation_block: self.creation_block(),
             current_block: u128::from(self.height()),
@@ -580,16 +566,7 @@ impl CouponToken {
         Ok(response)
     }
     
-    /// Handle GetStakeBonus opcode
-    fn get_stake_bonus(&self) -> Result<CallResponse> {
-        println!("🔍 GETTER CALLED: GetStakeBonus (opcode 13)");
-        let context = self.context()?;
-        let mut response = CallResponse::forward(&context.incoming_alkanes);
-        let stake_bonus = self.get_stake_bonus_internal();
-        response.data = (stake_bonus as u128).to_le_bytes().to_vec();
-        println!("🔍 GETTER RESULT: Stake Bonus = {}", stake_bonus);
-        Ok(response)
-    }
+
     
     /// Handle GetFinalResult opcode
     fn get_final_result(&self) -> Result<CallResponse> {

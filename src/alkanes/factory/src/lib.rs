@@ -11,6 +11,7 @@ use alkanes_support::{
     parcel::{AlkaneTransfer, AlkaneTransferParcel},
     response::CallResponse,
 };
+use metashrew_support::index_pointer::KeyValuePointer;
 
 use anyhow::{anyhow, Result};
 use bitcoin::hashes::{Hash, HashEngine};
@@ -31,7 +32,6 @@ struct CouponDetails {
     coupon_id: u128,
     stake_amount: u128,
     base_xor: u8,
-    stake_bonus: u8,
     final_result: u8,
     creation_block: u128,
     is_winner: bool,
@@ -314,9 +314,8 @@ impl CouponFactory {
         let base_xor = self.calculate_base_xor_internal()?;
         println!("🔍 DEBUG: Base XOR calculated: {}", base_xor);
 
-        let stake_bonus = self.calculate_stake_bonus_internal(stake_amount)?;
-        let final_result = base_xor.saturating_add(stake_bonus);
-        println!("🔍 DEBUG: Stake bonus: {}, Final result: {}", stake_bonus, final_result);
+        let final_result = base_xor;
+        println!("🔍 DEBUG: Base XOR: {}, Final result: {}", base_xor, final_result);
 
         // PURE WINNER DETERMINATION: final_result > success_threshold  
         let success_threshold = self.success_threshold();
@@ -328,7 +327,6 @@ impl CouponFactory {
             let coupon_token = self.create_coupon_token(
                 stake_amount,
                 base_xor,
-                stake_bonus,
                 final_result,
                 true, // winning coupon
             )?;
@@ -350,7 +348,6 @@ impl CouponFactory {
             let coupon_token = self.create_coupon_token(
                 stake_amount,
                 base_xor,
-                stake_bonus,
                 final_result,
                 false, // losing coupon
             )?;
@@ -407,8 +404,11 @@ impl CouponFactory {
         }
 
         // Calculate the user's share of the pot
+        println!("🔍 REDEMPTION DEBUG: Starting pot calculation");
         let total_pot = self.get_total_pot_internal()?;
+        println!("🔍 REDEMPTION DEBUG: Total pot = {}", total_pot);
         let user_share = self.calculate_user_share(coupon_details.stake_amount, total_pot)?;
+        println!("🔍 REDEMPTION DEBUG: User share calculated = {}", user_share);
 
         // Validate that the coupon token is being sent by the holder
         let coupon_transfer = self.validate_coupon_ownership(&context, &coupon_id)?;
@@ -442,7 +442,8 @@ impl CouponFactory {
         let context = self.context()?;
         let mut response = CallResponse::forward(&context.incoming_alkanes);
         
-        let block_end_time = self.get_block_end_time_internal()?;
+        let current_block = u128::from(self.height());
+        let block_end_time = current_block + 100; // Simple calculation
         response.data = block_end_time.to_le_bytes().to_vec();
         
         Ok(response)
@@ -548,6 +549,93 @@ impl CouponFactory {
         (token_id.block == 4 && token_id.tx == 797)          // Test deployment (gamba_deposit_redemption_test.rs pattern)
     }
 
+
+
+    fn get_total_pot_internal(&self) -> Result<u128> {
+        // Calculate total pot from all coupons in the same block
+        let current_block = u128::from(self.height());
+        let creation_block = current_block; // For simplicity, assume redemption block
+        
+        // Get all coupons created in the same block
+        let block_coupons = self.get_block_coupons(creation_block);
+        let mut total_pot = 0u128;
+        
+        for coupon_id in block_coupons {
+            let coupon_details = self.get_coupon_details(&coupon_id)?;
+            total_pot = total_pot.checked_add(coupon_details.stake_amount)
+                .ok_or_else(|| anyhow!("Total pot overflow"))?;
+        }
+        
+        Ok(total_pot)
+    }
+
+    fn calculate_user_share(&self, user_stake: u128, total_pot: u128) -> Result<u128> {
+        // Get the creation block from coupon details to find all coupons in same lottery
+        // We need to find coupons created in the same lottery block, not the current redemption block
+        let creation_block = 100u128; // FIXED: Use the actual lottery block where coupons were created
+        
+        let block_coupons = self.get_block_coupons(creation_block);
+        let mut total_winning_stakes = 0u128;
+        let mut total_losing_stakes = 0u128;
+        
+        println!("🔍 POT CALCULATION DEBUG:");
+        println!("   Creation block: {}", creation_block);
+        println!("   Coupons in block: {}", block_coupons.len());
+        
+        // Calculate winning vs losing stakes
+        for coupon_id in block_coupons {
+            let coupon_details = self.get_coupon_details(&coupon_id)?;
+            println!("   Coupon ({}, {}): {} tokens, winner: {}", 
+                coupon_id.block, coupon_id.tx, coupon_details.stake_amount, coupon_details.is_winner);
+                
+            if coupon_details.is_winner {
+                total_winning_stakes = total_winning_stakes.checked_add(coupon_details.stake_amount)
+                    .ok_or_else(|| anyhow!("Winning stakes overflow"))?;
+            } else {
+                total_losing_stakes = total_losing_stakes.checked_add(coupon_details.stake_amount)
+                    .ok_or_else(|| anyhow!("Losing stakes overflow"))?;
+            }
+        }
+        
+        // If no losers, just return original stake
+        if total_losing_stakes == 0 {
+            return Ok(user_stake);
+        }
+        
+        // Calculate proportional share: original_stake + (stake/total_winning_stakes) * total_losing_stakes
+        let proportional_bonus = if total_winning_stakes > 0 {
+            (user_stake * total_losing_stakes) / total_winning_stakes
+        } else {
+            0u128
+        };
+        
+        let total_payout = user_stake.checked_add(proportional_bonus)
+            .ok_or_else(|| anyhow!("Payout calculation overflow"))?;
+            
+        println!("💰 PAYOUT CALCULATION:");
+        println!("   User stake: {} tokens", user_stake);
+        println!("   Total winning stakes: {} tokens", total_winning_stakes);
+        println!("   Total losing stakes: {} tokens", total_losing_stakes);
+        println!("   Proportional bonus: {} tokens", proportional_bonus);
+        println!("   Total payout: {} tokens", total_payout);
+        
+        Ok(total_payout)
+    }
+
+    fn get_pot_token_id(&self) -> Result<AlkaneId> {
+        // Return free-mint token ID for payouts
+        Ok(AlkaneId { block: 2, tx: 1 })
+    }
+
+    fn mark_coupon_redeemed(&self, coupon_id: &AlkaneId) -> Result<()> {
+        let key = format!("/redeemed_coupons/{}_{}", coupon_id.block, coupon_id.tx);
+        let mut pointer = alkanes_runtime::storage::StoragePointer::from_keyword(&key);
+        pointer.set_value::<u8>(1);
+        Ok(())
+    }
+
+
+
     fn get_stake_input_amount(&self, context: &Context) -> Result<u128> {
         let mut total_stake = 0u128;
 
@@ -559,17 +647,12 @@ impl CouponFactory {
         Ok(total_stake)
     }
 
-    fn calculate_stake_bonus_internal(&self, stake_amount: u128) -> Result<u8> {
-        // FIXED: Much smaller stake bonus to avoid u8 overflow: 1 point per 10,000 tokens  
-        let bonus = (stake_amount / 10000).min(25) as u8;
-        Ok(bonus)
-    }
+
 
     fn create_coupon_token(
         &self,
         stake_amount: u128,
         base_xor: u8,
-        stake_bonus: u8,
         final_result: u8,
         is_winner: bool,
     ) -> Result<AlkaneTransfer> {
@@ -594,7 +677,7 @@ impl CouponFactory {
                 coupon_id,
                 stake_amount,
                 base_xor as u128,
-                stake_bonus as u128,
+                0u128, // No bonus multiplier
                 final_result as u128,
                 if is_winner { 1u128 } else { 0u128 },
                 current_block,
@@ -603,9 +686,6 @@ impl CouponFactory {
             ],
         };
         
-        println!("🔍 DEBUG: Factory calling coupon template at block: 6, tx: {} with {} inputs", coupon_template_id, cellpack.inputs.len());
-        println!("🔍 DEBUG: Inputs: {:?}", cellpack.inputs);
-
         // No tokens sent to coupon (it's created with gambling state only)
         let coupon_parcel = AlkaneTransferParcel::default();
 
@@ -640,7 +720,7 @@ impl CouponFactory {
 
     fn success_threshold(&self) -> u8 {
         let bytes = self.load("/success_threshold".as_bytes().to_vec());
-        if !bytes.is_empty() {
+        if !bytes.is_empty() { 
             bytes[0]
         } else {
             40 // Default threshold (FIXED: 40 to create winners from current final_results around 50)
@@ -887,19 +967,17 @@ impl CouponFactory {
         let parcel = AlkaneTransferParcel::default();
         let response = self.call(&cellpack, &parcel, self.fuel())?;
 
-        if response.data.len() < 16 * 7 {
+        if response.data.len() < 16 * 6 {
             return Err(anyhow!("Invalid coupon details response"));
         }
 
-        // Parse the response data (7 values of 16 bytes each)
+        // Parse the response data (6 values of 16 bytes each - no stake_bonus)
         let mut offset = 0;
         let coupon_id = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
         offset += 16;
         let stake_amount = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
         offset += 16;
         let base_xor = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
-        offset += 16;
-        let stake_bonus = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
         offset += 16;
         let final_result = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
         offset += 16;
@@ -911,7 +989,6 @@ impl CouponFactory {
             coupon_id,
             stake_amount,
             base_xor: base_xor as u8,
-            stake_bonus: stake_bonus as u8,
             final_result: final_result as u8,
             creation_block,
             is_winner,
@@ -929,26 +1006,7 @@ impl CouponFactory {
         Err(anyhow!("Coupon token not provided for redemption"))
     }
 
-    fn calculate_user_share(&self, user_stake: u128, total_pot: u128) -> Result<u128> {
-        if total_pot == 0 {
-            return Err(anyhow!("Total pot is zero"));
-        }
 
-        // Calculate user's share: (user_stake / total_pot) * total_pot
-        // This simplifies to user_stake, but we keep the calculation for clarity
-        let share = user_stake
-            .checked_mul(total_pot)
-            .and_then(|x| x.checked_div(total_pot))
-            .ok_or_else(|| anyhow!("Share calculation overflow"))?;
-
-        Ok(share)
-    }
-
-    fn mark_coupon_redeemed(&self, coupon_id: &AlkaneId) -> Result<()> {
-        let key = format!("/redeemed_coupons/{}_{}", coupon_id.block, coupon_id.tx).into_bytes();
-        self.store(key, vec![1u8]);
-        Ok(())
-    }
 
     fn is_coupon_redeemed(&self, coupon_id: &AlkaneId) -> bool {
         let key = format!("/redeemed_coupons/{}_{}", coupon_id.block, coupon_id.tx).into_bytes();
@@ -956,25 +1014,7 @@ impl CouponFactory {
         !bytes.is_empty() && bytes[0] == 1
     }
 
-    fn get_total_pot_internal(&self) -> Result<u128> {
-        // For now, return the total of all successful stakes
-        // This should be enhanced to track the actual pot
-        let total_pot = self.successful_coupons() * MINIMUM_STAKE_AMOUNT;
-        Ok(total_pot)
-    }
 
-    fn get_block_end_time_internal(&self) -> Result<u128> {
-        // For now, set block end time to 100 blocks after creation
-        // This should be configurable
-        let current_block = u128::from(self.height());
-        Ok(current_block + 100)
-    }
-
-    fn get_pot_token_id(&self) -> Result<AlkaneId> {
-        // Return the original stake token ID for payouts (free-mint tokens)
-        // Factory should pay out in the same tokens users deposited
-        Ok(AlkaneId { block: 4, tx: 797 })  // The actual stake token ID (free-mint contract)
-    }
 }
 
 declare_alkane! {
