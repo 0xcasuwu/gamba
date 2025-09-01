@@ -125,6 +125,8 @@ impl CouponFactory {
     fn redeem_coupon(&self, coupon_id: AlkaneId) -> Result<CallResponse> {
         let context = self.context()?;
         let mut response = CallResponse::default();
+        
+        println!("🚨 REDEEM START: Processing coupon {:?}", coupon_id);
 
         // Verify user is bringing in the actual coupon token
         let incoming_coupon = context.incoming_alkanes.0.iter()
@@ -208,27 +210,25 @@ impl CouponFactory {
         }
         
         println!("🏆 POT CALCULATION for block {}:", creation_block);
-        println!("   • Total winning deposits: {}", total_winning_deposits);
-        println!("   • Total losing deposits: {}", total_losing_deposits);
+        println!("🔍 POT DEBUG: total_winning_deposits={}, total_losing_deposits={}", total_winning_deposits, total_losing_deposits);
+        println!("🔍 POT DEBUG: winner_deposit={}, calculation: ({} * {}) / {} = ?", 
+                 coupon_details.stake_amount, coupon_details.stake_amount, total_losing_deposits, total_winning_deposits);
         println!("   • This winner's deposit: {}", coupon_details.stake_amount);
         
         if total_winning_deposits == 0 {
             return Err(anyhow!("No winning deposits found for block {}", creation_block));
         }
         
-        // Calculate proportional share of losing pot
-        let proportional_share = if total_losing_deposits > 0 {
-            (coupon_details.stake_amount * total_losing_deposits) / total_winning_deposits
+        // PURE MATHEMATICAL FORMULA: winner's_deposit / total_winning_deposits * total_pot
+        let total_pot = total_winning_deposits + total_losing_deposits;
+        let total_payout = if total_winning_deposits > 0 {
+            (coupon_details.stake_amount * total_pot) / total_winning_deposits
         } else {
-            0u128 // No losing deposits means no bonus
+            coupon_details.stake_amount // Fallback: just return original deposit
         };
         
-        // Winner gets: original deposit + proportional share of losing deposits
-        let total_payout = coupon_details.stake_amount + proportional_share;
-        
-        println!("   • Proportional share of losing pot: {}", proportional_share);
-        println!("   • Total payout: {} (deposit: {} + bonus: {})", 
-            total_payout, coupon_details.stake_amount, proportional_share);
+        println!("🔍 POT MATH: total_pot={}, winner_deposit={}, total_winning={}", total_pot, coupon_details.stake_amount, total_winning_deposits);
+        println!("🔍 FORMULA: ({} × {}) / {} = {}", coupon_details.stake_amount, total_pot, total_winning_deposits, total_payout);
         
         Ok(total_payout)
     }
@@ -304,6 +304,7 @@ impl CouponFactory {
         let mut response = CallResponse::default();
         let current_block = u128::from(self.height());
 
+        println!("🚨🚨🚨 CREATE_COUPON ACTUALLY CALLED - NEW LOGIC ACTIVE 🚨🚨🚨");
         println!("🔍 DEBUG: Factory create_coupon called");
         
         // Validate incoming tokens following boiler pattern
@@ -318,12 +319,11 @@ impl CouponFactory {
         let final_result = base_xor.saturating_add(stake_bonus);
         println!("🔍 DEBUG: Stake bonus: {}, Final result: {}", stake_bonus, final_result);
 
-        // Check success threshold - DEBUG THE ACTUAL VALUES
+        // PURE WINNER DETERMINATION: final_result > success_threshold  
         let success_threshold = self.success_threshold();
         let is_winner = (final_result as u128) > (success_threshold as u128);
-        println!("🎯 WINNER DECISION DEBUG: final_result={} as u128={}, success_threshold={} as u128={}, comparison={}>{}, is_winner={}", 
-                 final_result, final_result as u128, success_threshold, success_threshold as u128, 
-                 final_result as u128, success_threshold as u128, is_winner);
+        println!("🎯 PURE WINNER LOGIC: final_result={} > threshold={}? is_winner={}", 
+                 final_result, success_threshold, is_winner);
         if is_winner {
             // Successful gamble - create winning coupon token
             let coupon_token = self.create_coupon_token(
