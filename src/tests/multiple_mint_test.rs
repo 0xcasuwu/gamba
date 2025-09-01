@@ -789,8 +789,119 @@ fn test_comprehensive_factory_integration() -> Result<()> {
     if let Some(coupon_id) = created_coupon_id {
         println!("✅ COUPON TOKEN FOUND: {:?}", coupon_id);
 
+        // PHASE 6.5: CREATE SECOND USER FOR MULTI-USER LOTTERY (SIMPLE APPROACH)
+        println!("\n👥 PHASE 6.5: Creating Second User for Multi-User Lottery");
+        
+        // Create second user deposit at same block (block 10) with fresh tokens
+        let second_user_mint_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+            version: Version::ONE,
+            lock_time: bitcoin::absolute::LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint::null(),
+                script_sig: ScriptBuf::new(),
+                sequence: Sequence::from_height(7u16), // Make unique
+                witness: Witness::new()
+            }],
+            output: vec![
+                TxOut {
+                    script_pubkey: Address::from_str(ADDRESS1().as_str())
+                        .unwrap()
+                        .require_network(get_btc_network())
+                        .unwrap()
+                        .script_pubkey(),
+                    value: Amount::from_sat(546),
+                },
+                TxOut {
+                    script_pubkey: (Runestone {
+                        edicts: vec![],
+                        etching: None,
+                        mint: None,
+                        pointer: None,
+                        protocol: Some(
+                            vec![
+                                Protostone {
+                                    message: into_cellpack(vec![2u128, 1u128, 77u128]).encipher(), // Mint tokens
+                                    protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                    pointer: Some(0),
+                                    refund: Some(0),
+                                    from: None,
+                                    burn: None,
+                                    edicts: vec![],
+                                }
+                            ].encipher()?
+                        )
+                    }).encipher(),
+                    value: Amount::from_sat(546)
+                }
+            ],
+        }]);
+        index_block(&second_user_mint_block, 7)?; // Block 7 for minting
+        
+        // Second user deposit at block 10 (same as first user)
+        let second_user_deposit_block: Block = protorune_helpers::create_block_with_txs(vec![Transaction {
+            version: Version::ONE,
+            lock_time: bitcoin::absolute::LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint {
+                    txid: second_user_mint_block.txdata[0].compute_txid(),
+                    vout: 0,
+                },
+                script_sig: ScriptBuf::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::new()
+            }],
+            output: vec![
+                TxOut {
+                    script_pubkey: Address::from_str(ADDRESS1().as_str())
+                        .unwrap()
+                        .require_network(get_btc_network())
+                        .unwrap()
+                        .script_pubkey(),
+                    value: Amount::from_sat(546),
+                },
+                TxOut {
+                    script_pubkey: (Runestone {
+                        edicts: vec![],
+                        etching: None,
+                        mint: None,
+                        pointer: None,
+                        protocol: Some(
+                            vec![
+                                Protostone {
+                                    message: into_cellpack(vec![
+                                        4u128, 1793u128, 1u128, // CreateCoupon at factory
+                                    ]).encipher(),
+                                    protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
+                                    pointer: Some(0),
+                                    refund: Some(0),
+                                    from: None,
+                                    burn: None,
+                                    edicts: vec![
+                                        ProtostoneEdict {
+                                            id: ProtoruneRuneId { block: 2, tx: 1 },
+                                            amount: 50000, // LOSER: 50,000 tokens 
+                                            output: 0,
+                                        }
+                                    ],
+                                }
+                            ].encipher()?
+                        )
+                    }).encipher(),
+                    value: Amount::from_sat(546)
+                }
+            ],
+        }]);
+        index_block(&second_user_deposit_block, 10)?; // Block 10 - SAME AS FIRST USER
+        
+        println!("✅ SECOND USER created at block 10 (50,000 tokens - LOSER)");
+        println!("📊 MULTI-USER LOTTERY SETUP:");
+        println!("   • USER 1: 100,000 tokens (WINNER) → Coupon {:?}", coupon_id);
+        println!("   • USER 2: 50,000 tokens (LOSER)");
+        println!("   • Total pot: 150,000 tokens");
+        println!("   • Expected USER 1 payout: 100,000 + 50,000 = 150,000 tokens");
+
         // PHASE 7: REDEMPTION WITH COUPON TOKEN (BOILER PATTERN)
-        println!("\n🎰 PHASE 7: REDEMPTION WITH ACTUAL COUPON TOKEN");
+        println!("\n🎰 PHASE 7: REDEMPTION WITH MULTI-USER LOTTERY");
         
         let coupon_outpoint = OutPoint {
             txid: deposit_block.txdata[0].compute_txid(),
@@ -904,20 +1015,30 @@ fn test_comprehensive_factory_integration() -> Result<()> {
             total_balance_received += amount;
         }
 
-        println!("\n🎊 REDEMPTION WITH PAYOUT RESULTS:");
-        println!("=================================");
-        println!("✅ Original deposit: {} tokens", available_tokens);
-        println!("✅ Coupon created: {:?}", coupon_id);
+        println!("\n🎊 MULTI-USER REDEMPTION WITH PAYOUT RESULTS:");
+        println!("==============================================");
+        println!("📊 USER 1 (WINNER): {} tokens deposited", available_tokens);
+        println!("📊 USER 2 (LOSER): 50,000 tokens deposited");
+        println!("📊 Total lottery pot: {} tokens", available_tokens + 50000);
+        println!("✅ Coupon redeemed: {:?}", coupon_id);
         
         let max_payout = std::cmp::max(total_payout_received, total_balance_received);
         if max_payout > 0 {
-            println!("✅ TOTAL PAYOUT RECEIVED: {} tokens", max_payout);
+            println!("✅ ACTUAL USER 1 PAYOUT: {} tokens", max_payout);
             
-            if max_payout > available_tokens {
-                println!("✅ PROFIT: {} tokens", max_payout - available_tokens);
-                println!("🎉 🎉 🎉 SUCCESS: USER RECEIVED DEPOSIT + WINNINGS WITH TRACE CITATIONS! 🎉 🎉 🎉");
+            if max_payout > available_tokens + 50000 {
+                println!("🏆 JACKPOT: USER 1 won MORE than the entire pot!");
+            } else if max_payout >= available_tokens + 40000 {
+                let profit = max_payout - available_tokens;
+                println!("🎉 🎉 🎉 MULTI-USER SUCCESS: USER 1 WON {} TOKENS FROM USER 2'S LOSING BET! 🎉 🎉 🎉", profit);
+                println!("💰 USER 1 got: {} original + {} winnings = {} total", available_tokens, profit, max_payout);
+            } else if max_payout > available_tokens {
+                let profit = max_payout - available_tokens;
+                println!("✅ PROFIT: {} tokens from multi-user pot", profit);
+                println!("🎉 SUCCESS: USER 1 received deposit + winnings from USER 2!");
             } else if max_payout == available_tokens {
-                println!("✅ BREAK-EVEN: User received original deposit back");
+                println!("⚠️ SINGLE-USER RESULT: User received only original deposit back");
+                println!("💡 This suggests pot distribution didn't include USER 2's losing bet");
             } else {
                 println!("⚠️ PARTIAL PAYOUT: {} tokens received (less than original)", max_payout);
             }
