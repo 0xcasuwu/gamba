@@ -66,6 +66,20 @@ fn test_multi_user_pot_distribution() -> Result<()> {
     println!("   • Free-mint template: block 4, tx 797");
     println!("   • Coupon template: block 4, tx 0x601");
     println!("   • Factory template: block 4, tx 0x701");
+    
+    // 🔍 TRACE: Template deployment evidence (vout 0-5)
+    println!("\n🔍 TEMPLATE DEPLOYMENT TRACES:");
+    for vout in 0..6 {
+        let trace_data = &view::trace(&OutPoint {
+            txid: template_block.txdata[0].compute_txid(),
+            vout,
+        })?;
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
+        let trace_guard = trace_result.0.lock().unwrap();
+        if !trace_guard.is_empty() {
+            println!("   📋 Template vout {}: {:?}", vout, *trace_guard);
+        }
+    }
 
     // PHASE 2: Initialize free-mint token contract (6 → 4 → 2 pattern)
     println!("\n🪙 PHASE 2: Initializing DUST Token Contract");
@@ -119,6 +133,20 @@ fn test_multi_user_pot_distribution() -> Result<()> {
     index_block(&free_mint_block, 2)?;
     let dust_token_id = AlkaneId { block: 2, tx: 1 };
     println!("✅ DUST token initialized at {:?}", dust_token_id);
+    
+    // 🔍 TRACE: Token initialization evidence (vout 0-5)
+    println!("\n🔍 TOKEN INITIALIZATION TRACES:");
+    for vout in 0..6 {
+        let trace_data = &view::trace(&OutPoint {
+            txid: free_mint_block.txdata[0].compute_txid(),
+            vout,
+        })?;
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
+        let trace_guard = trace_result.0.lock().unwrap();
+        if !trace_guard.is_empty() {
+            println!("   🪙 Token vout {}: {:?}", vout, *trace_guard);
+        }
+    }
 
     // PHASE 3: Initialize Factory (6 → 4 → 2 pattern)
     println!("\n🏭 PHASE 3: Initializing Factory");
@@ -168,6 +196,20 @@ fn test_multi_user_pot_distribution() -> Result<()> {
     index_block(&factory_init_block, 4)?;
     let factory_id = AlkaneId { block: 2, tx: 1793 };
     println!("✅ Factory initialized at {:?}", factory_id);
+    
+    // 🔍 TRACE: Factory initialization evidence (vout 0-5)
+    println!("\n🔍 FACTORY INITIALIZATION TRACES:");
+    for vout in 0..6 {
+        let trace_data = &view::trace(&OutPoint {
+            txid: factory_init_block.txdata[0].compute_txid(),
+            vout,
+        })?;
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
+        let trace_guard = trace_result.0.lock().unwrap();
+        if !trace_guard.is_empty() {
+            println!("   🏭 Factory vout {}: {:?}", vout, *trace_guard);
+        }
+    }
 
     // PHASE 4: Create users' deposits at the SAME block
     println!("\n👥 PHASE 4: Multi-User Deposits at Block 10");
@@ -276,29 +318,41 @@ fn create_user_deposit(username: &str, amount: u128, dust_token_id: &AlkaneId, f
 fn analyze_coupon_results(username: &str, outpoint: &OutPoint) -> Result<()> {
     println!("   🔍 Analyzing {}'s deposit result...", username);
     
-    let trace_data = &view::trace(outpoint)?;
-    let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
-    let trace_guard = trace_result.0.lock().unwrap();
+    // Check ALL vouts (0-5) for complete trace evidence
+    for vout in 0..6 {
+        let trace_outpoint = OutPoint { txid: outpoint.txid, vout };
+        let trace_data = &view::trace(&trace_outpoint)?;
+        let trace_result: alkanes_support::trace::Trace = AlkanesTrace::decode(&trace_data[..])?.into();
+        let trace_guard = trace_result.0.lock().unwrap();
 
-    if trace_guard.is_empty() {
-        println!("     ❌ No trace data found for {}", username);
-        return Ok(());
-    }
-
-    for entry in trace_guard.iter() {
-        match entry {
-            alkanes_support::trace::TraceEvent::CreateAlkane(alkane_id) => {
-                println!("     ✅ {} received coupon: ({}, {})", username, alkane_id.block, alkane_id.tx);
-            },
-            alkanes_support::trace::TraceEvent::ReturnContext(return_ctx) => {
-                if !return_ctx.inner.alkanes.0.is_empty() {
-                    for alkane in return_ctx.inner.alkanes.0.iter() {
-                        println!("     🎫 {} coupon details: {} unit of ({}, {})", 
-                            username, alkane.value, alkane.id.block, alkane.id.tx);
-                    }
+        if !trace_guard.is_empty() {
+            println!("     📊 {} vout {} trace: {:?}", username, vout, *trace_guard);
+            
+            // Parse specific trace events
+            for entry in trace_guard.iter() {
+                match entry {
+                    alkanes_support::trace::TraceEvent::CreateAlkane(alkane_id) => {
+                        println!("     ✅ {} CREATED COUPON: ({}, {})", username, alkane_id.block, alkane_id.tx);
+                    },
+                    alkanes_support::trace::TraceEvent::ReturnContext(return_ctx) => {
+                        if !return_ctx.inner.alkanes.0.is_empty() {
+                            for alkane in return_ctx.inner.alkanes.0.iter() {
+                                println!("     🎫 {} RECEIVED: {} units of ({}, {})", 
+                                    username, alkane.value, alkane.id.block, alkane.id.tx);
+                            }
+                        }
+                        
+                        // Check for block-level coupon tracking in storage
+                        if let Some(block_storage) = return_ctx.inner.storage.0.iter().find(|(key, _)| {
+                            String::from_utf8_lossy(key).contains("/block_coupons/")
+                        }) {
+                            println!("     🏆 {} POT TRACKING: {} = {:?}", 
+                                username, String::from_utf8_lossy(&block_storage.0), block_storage.1);
+                        }
+                    },
+                    _ => {}
                 }
-            },
-            _ => {}
+            }
         }
     }
     
