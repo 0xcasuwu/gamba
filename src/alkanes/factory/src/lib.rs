@@ -318,11 +318,12 @@ impl CouponFactory {
         let final_result = base_xor.saturating_add(stake_bonus);
         println!("🔍 DEBUG: Stake bonus: {}, Final result: {}", stake_bonus, final_result);
 
-        // Check success threshold
+        // Check success threshold - DEBUG THE ACTUAL VALUES
         let success_threshold = self.success_threshold();
         let is_winner = (final_result as u128) > (success_threshold as u128);
-        println!("🎯 WINNER DECISION: final_result={}, success_threshold={}, is_winner={}", 
-                 final_result, success_threshold, is_winner);
+        println!("🎯 WINNER DECISION DEBUG: final_result={} as u128={}, success_threshold={} as u128={}, comparison={}>{}, is_winner={}", 
+                 final_result, final_result as u128, success_threshold, success_threshold as u128, 
+                 final_result as u128, success_threshold as u128, is_winner);
         if is_winner {
             // Successful gamble - create winning coupon token
             let coupon_token = self.create_coupon_token(
@@ -473,7 +474,7 @@ impl CouponFactory {
         
         // CRITICAL: Add per-user entropy using coupon count
         // This makes each user at same block get different randomness
-        let user_entropy = (coupon_count as u8).wrapping_mul(7); // Prime multiplier
+        let user_entropy = (coupon_count as u8).wrapping_mul(7); // Natural entropy, no artificial bonuses
         
         // Combine all sources with modular arithmetic to stay in u8 range
         let final_xor = base_xor.wrapping_add(entropy_xor).wrapping_add(user_entropy);

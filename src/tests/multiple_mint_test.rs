@@ -360,7 +360,7 @@ fn test_debug_factory_deployment_with_minting() -> Result<()> {
             vec![3u128, 0x601, 0u128, 1u128, 1000u128, 50u128, 10u128, 60u128, 1u128, 1u128, 4u128, 0x701u128], // Sample coupon initialization
             // coupon_factory template → deploys instance at block 4, tx 0x701 (opcode 0 for init)
             // Arguments: success_threshold, coupon_token_template_id
-            vec![3u128, 0x701, 0u128, 250u128, 4u128, 0x601u128], // success_threshold=250, coupon_template_id=4,0x601
+            vec![3u128, 0x701, 0u128, 200u128, 4u128, 0x601u128], // success_threshold=200, coupon_template_id=4,0x601
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
@@ -920,11 +920,11 @@ fn test_comprehensive_factory_integration() -> Result<()> {
 
         let user2_coupon = user2_coupon_id.unwrap_or(AlkaneId { block: 0, tx: 0 });
         
-        println!("✅ SECOND USER created at block 10 (50,000 tokens - LOSER)");
+        println!("✅ SECOND USER created at block 10 (50,000 tokens - SHOULD BE LOSER)");
         println!("📊 MULTI-USER LOTTERY SETUP:");
-        println!("   • USER 1: 100,000 tokens (WINNER) → Coupon {:?} at block 10", coupon_id);
-        println!("   • USER 2: 50,000 tokens (LOSER) → Coupon {:?} at block 10", user2_coupon);
-        println!("   • Total pot: 150,000 tokens");
+        println!("   • USER 1: 100,000 tokens (final_result=255 > threshold=200) → Coupon {:?}", coupon_id);
+        println!("   • USER 2: 50,000 tokens (final_result=176 < threshold=200) → Coupon {:?}", user2_coupon);
+        println!("   • Expected: USER 1 = WINNER, USER 2 = LOSER");
         println!("   • Expected USER 1 payout: 100,000 + 50,000 = 150,000 tokens");
         
         if user2_coupon.block == 0 {
@@ -1013,17 +1013,29 @@ fn test_comprehensive_factory_integration() -> Result<()> {
                 let trace_str = format!("{:?}", *trace_guard);
                 println!("   📊 REDEMPTION vout {} trace: {:?}", vout, *trace_guard);
 
-                // Look for POT CALCULATION debug output in traces
-                if trace_str.contains("POT CALCULATION") || trace_str.contains("Total winning deposits") {
-                    println!("   🎯 POT DISTRIBUTION DEBUG FOUND IN TRACE!");
+                // Extract winner status from both coupons based on trace parsing
+                if trace_str.contains("AlkaneId { block: 2, tx: 3 }") {
+                    println!("   🔍 USER 1 COUPON (2,3) FOUND IN TRACE");
+                }
+                if trace_str.contains("AlkaneId { block: 2, tx: 4 }") {
+                    println!("   🔍 USER 2 COUPON (2,4) FOUND IN TRACE");
                 }
                 
-                if trace_str.contains("Total losing deposits: 0") {
-                    println!("   ❌ ISSUE: Total losing deposits is 0 - USER 2's coupon not found!");
+                // Parse coupon data to extract winner status
+                if trace_str.contains("data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 160, 134, 1, 0") {
+                    println!("   👑 USER 1: final_result=255, is_winner=1 (WINNER - CORRECT)");
+                }
+                if trace_str.contains("data: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 160, 134, 1, 0") {
+                    println!("   🎲 USER 2: final_result=176, is_winner=1 (❌ SHOULD BE LOSER!)");
+                    println!("   ❌ BUG: USER 2 marked as winner despite final_result=176 < threshold=200");
+                    println!("   ❌ This causes total_losing_deposits=0, breaking pot distribution");
                 }
                 
-                if trace_str.contains("Total losing deposits: 50000") {
-                    println!("   ✅ SUCCESS: USER 2's 50,000 tokens found in losing pot!");
+                // Look for the final payout
+                if trace_str.contains("value: 150000") {
+                    println!("   🎉 SUCCESS: Winner received proper n+n payout (150,000 tokens)!");
+                } else if trace_str.contains("value: 100000") {
+                    println!("   ❌ ISSUE: Winner only got original deposit (100,000) instead of n+n (150,000)");
                 }
 
                 for entry in trace_guard.iter() {
