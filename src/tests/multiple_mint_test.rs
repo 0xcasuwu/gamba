@@ -360,7 +360,7 @@ fn test_debug_factory_deployment_with_minting() -> Result<()> {
             vec![3u128, 0x601, 0u128, 1u128, 1000u128, 50u128, 10u128, 60u128, 1u128, 1u128, 4u128, 0x701u128], // Sample coupon initialization
             // coupon_factory template → deploys instance at block 4, tx 0x701 (opcode 0 for init)
             // Arguments: success_threshold, coupon_token_template_id
-            vec![3u128, 0x701, 0u128, 200u128, 4u128, 0x601u128], // success_threshold=200, coupon_template_id=4,0x601
+            vec![3u128, 0x701, 0u128, 180u128, 4u128, 0x601u128], // success_threshold=180, coupon_template_id=4,0x601
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
@@ -922,8 +922,8 @@ fn test_comprehensive_factory_integration() -> Result<()> {
         
         println!("✅ SECOND USER created at block 10 (50,000 tokens - SHOULD BE LOSER)");
         println!("📊 MULTI-USER LOTTERY SETUP:");
-        println!("   • USER 1: 100,000 tokens (final_result=255 > threshold=200) → Coupon {:?}", coupon_id);
-        println!("   • USER 2: 50,000 tokens (final_result=176 < threshold=200) → Coupon {:?}", user2_coupon);
+        println!("   • USER 1: 100,000 tokens (final_result=255 > threshold=180) → Coupon {:?}", coupon_id);
+        println!("   • USER 2: 50,000 tokens (final_result=176 < threshold=180) → Coupon {:?}", user2_coupon);
         println!("   • Expected: USER 1 = WINNER, USER 2 = LOSER");
         println!("   • Expected USER 1 payout: 100,000 + 50,000 = 150,000 tokens");
         
@@ -1027,7 +1027,7 @@ fn test_comprehensive_factory_integration() -> Result<()> {
                 }
                 if trace_str.contains("data: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 160, 134, 1, 0") {
                     println!("   🎲 USER 2: final_result=176, is_winner=1 (❌ SHOULD BE LOSER!)");
-                    println!("   ❌ BUG: USER 2 marked as winner despite final_result=176 < threshold=200");
+                    println!("   ❌ BUG: USER 2 marked as winner despite final_result=176 < threshold=180");
                     println!("   ❌ This causes total_losing_deposits=0, breaking pot distribution");
                 }
                 
