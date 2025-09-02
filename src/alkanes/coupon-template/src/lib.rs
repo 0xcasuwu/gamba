@@ -203,11 +203,13 @@ impl CouponToken {
         factory_block: u128,
         factory_tx: u128,
     ) -> Result<CallResponse> {
+        println!("🚨🚨🚨 COUPON TEMPLATE INITIALIZE ENTRY POINT 🚨🚨🚨");
         let context = self.context()?;
         let mut response = CallResponse::default();
 
         println!("🚀 COUPON TEMPLATE: Initialize called with coupon_id: {}, stake_amount: {}", coupon_id, stake_amount);
         println!("🚀 COUPON TEMPLATE: Context myself: {:?}", context.myself);
+        println!("🚀 COUPON TEMPLATE: Context caller: {:?}", context.caller);
 
         self.observe_initialization()?;
 

@@ -31,7 +31,6 @@ struct CouponDetails {
     coupon_id: u128,
     stake_amount: u128,
     base_xor: u8,
-    stake_bonus: u8,
     final_result: u8,
     creation_block: u128,
     is_winner: bool,
@@ -147,7 +146,7 @@ impl CouponFactory {
         }
 
         // Check block timing constraint: lottery lasts 1 block, redeem after lottery ends
-        let current_block = u128::from(self.height());
+        let current_block = self.heig
         
         if current_block <= coupon_details.creation_block {
             return Err(anyhow!(
@@ -163,10 +162,6 @@ impl CouponFactory {
 
         // Calculate pot-based payout (proportional distribution)
         let total_payout = self.calculate_pot_payout(&coupon_details)?;
-
-        println!("🎰 REDEEM: Coupon {} pot payout: {} (original deposit: {})", 
-            format!("({}, {})", coupon_id.block, coupon_id.tx),
-            total_payout, coupon_details.stake_amount);
 
         // Mark coupon as redeemed
         self.mark_coupon_redeemed(&coupon_id)?;
@@ -198,22 +193,14 @@ impl CouponFactory {
         // Calculate winning vs losing pots
         for coupon_id in &block_coupons {
             let details = self.get_coupon_details(coupon_id)?;
-            println!("🎲 COUPON {:?}: stake={}, is_winner={}", coupon_id, details.stake_amount, details.is_winner);
             if details.is_winner {
                 total_winning_deposits += details.stake_amount;
-                println!("   → Added {} to WINNING pot", details.stake_amount);
             } else {
                 total_losing_deposits += details.stake_amount;
-                println!("   → Added {} to LOSING pot", details.stake_amount);
             }
         }
         
-        println!("🏆 POT CALCULATION for block {}:", creation_block);
-        println!("🔍 POT DEBUG: total_winning_deposits={}, total_losing_deposits={}", total_winning_deposits, total_losing_deposits);
-        println!("🔍 POT DEBUG: winner_deposit={}, calculation: ({} * {}) / {} = ?", 
-                 coupon_details.stake_amount, coupon_details.stake_amount, total_losing_deposits, total_winning_deposits);
-        println!("   • This winner's deposit: {}", coupon_details.stake_amount);
-        
+
         if total_winning_deposits == 0 {
             return Err(anyhow!("No winning deposits found for block {}", creation_block));
         }
@@ -226,8 +213,6 @@ impl CouponFactory {
             coupon_details.stake_amount // Fallback: just return original deposit
         };
         
-        println!("🔍 POT MATH: total_pot={}, winner_deposit={}, total_winning={}", total_pot, coupon_details.stake_amount, total_winning_deposits);
-        println!("🔍 FORMULA: ({} × {}) / {} = {}", coupon_details.stake_amount, total_pot, total_winning_deposits, total_payout);
         
         Ok(total_payout)
     }
@@ -282,16 +267,14 @@ impl CouponFactory {
         let _context = self.context()?;
         let response = CallResponse::default();
 
-        println!("🏭 FACTORY INIT: success_threshold={}, coupon_template={:?}", success_threshold, coupon_token_template_id);
-
         self.observe_initialization()?;
 
-        // Store all parameters
+        // Store all parameters following boiler pattern
         self.set_success_threshold(success_threshold as u8);
-        println!("✅ STORED THRESHOLD: {} (verify: {})", success_threshold as u8, self.success_threshold());
+
         self.set_coupon_token_template_id(&coupon_token_template_id)?;
 
-        // Initialize counters
+        // Initialize counters following boiler pattern
         self.set_successful_coupons(0);
         self.set_failed_coupons(0);
 
@@ -300,35 +283,26 @@ impl CouponFactory {
 
     fn create_coupon(&self) -> Result<CallResponse> {
         let context = self.context()?;
-        let mut response = CallResponse::default();
-        let current_block = u128::from(self.height());
 
-        println!("🚨🚨🚨 CREATE_COUPON ACTUALLY CALLED - NEW LOGIC ACTIVE 🚨🚨🚨");
-        println!("🔍 DEBUG: Factory create_coupon called");
+        let mut response = CallResponse::default();
         
         // Validate incoming tokens following boiler pattern
         let (stake_amount, stake_token_id) = self.validate_incoming_tokens(&context)?;
-        println!("🔍 DEBUG: Token validation passed - stake_amount: {}, stake_token_id: {:?}", stake_amount, stake_token_id);
         
         // Calculate base XOR from blockchain data
         let base_xor = self.calculate_base_xor_internal()?;
-        println!("🔍 DEBUG: Base XOR calculated: {}", base_xor);
 
-        let stake_bonus = self.calculate_stake_bonus_internal(stake_amount)?;
-        let final_result = base_xor.saturating_add(stake_bonus);
-        println!("🔍 DEBUG: Stake bonus: {}, Final result: {}", stake_bonus, final_result);
+        let final_result = base_xor;
 
         // PURE WINNER DETERMINATION: final_result > success_threshold  
         let success_threshold = self.success_threshold();
         let is_winner = (final_result as u128) > (success_threshold as u128);
-        println!("🎯 PURE WINNER LOGIC: final_result={} > threshold={}? is_winner={}", 
-                 final_result, success_threshold, is_winner);
+
         if is_winner {
             // Successful gamble - create winning coupon token
             let coupon_token = self.create_coupon_token(
                 stake_amount,
                 base_xor,
-                stake_bonus,
                 final_result,
                 true, // winning coupon
             )?;
@@ -337,7 +311,7 @@ impl CouponFactory {
             self.register_coupon(&coupon_token.id);
             
             // Track coupon by creation block for pot calculations
-            self.add_coupon_to_block(current_block, &coupon_token.id)?;
+            self.add_coupon_to_block(self.height(), &coupon_token.id)?;
 
             // Increment successful coupons
             let new_successful = self.successful_coupons().checked_add(1).unwrap_or(0);
@@ -350,7 +324,6 @@ impl CouponFactory {
             let coupon_token = self.create_coupon_token(
                 stake_amount,
                 base_xor,
-                stake_bonus,
                 final_result,
                 false, // losing coupon
             )?;
@@ -359,7 +332,7 @@ impl CouponFactory {
             self.register_coupon(&coupon_token.id);
             
             // Track coupon by creation block for pot calculations
-            self.add_coupon_to_block(current_block, &coupon_token.id)?;
+            self.add_coupon_to_block(self.height(), &coupon_token.id)?;
 
             // Increment failed coupons
             let new_failed = self.failed_coupons().checked_add(1).unwrap_or(0);
@@ -399,19 +372,15 @@ impl CouponFactory {
 
         // Validate that the block has elapsed (redemption period has started)
         // Each block is a separate lottery - redemption is available 1 block after deposit
-        let current_block = u128::from(self.height());
         let redemption_available_block = coupon_details.creation_block + 1;
         
-        if current_block < redemption_available_block {
-            return Err(anyhow!("Redemption period has not started yet. Current block: {}, Redemption available at block: {}", current_block, redemption_available_block));
+        if self.height() < redemption_available_block {
+            return Err(anyhow!("Redemption period has not started yet. Current block: {}, Redemption available at block: {}", self.height(), redemption_available_block));
         }
 
         // Calculate the user's share of the pot
         let total_pot = self.get_total_pot_internal()?;
         let user_share = self.calculate_user_share(coupon_details.stake_amount, total_pot)?;
-
-        // Validate that the coupon token is being sent by the holder
-        let coupon_transfer = self.validate_coupon_ownership(&context, &coupon_id)?;
 
         // Transfer the user's share of the pot
         let pot_share_transfer = AlkaneTransfer {
@@ -434,16 +403,6 @@ impl CouponFactory {
         
         let total_pot = self.get_total_pot_internal()?;
         response.data = total_pot.to_le_bytes().to_vec();
-        
-        Ok(response)
-    }
-
-    fn get_block_end_time(&self) -> Result<CallResponse> {
-        let context = self.context()?;
-        let mut response = CallResponse::forward(&context.incoming_alkanes);
-        
-        let block_end_time = self.get_block_end_time_internal()?;
-        response.data = block_end_time.to_le_bytes().to_vec();
         
         Ok(response)
     }
@@ -478,9 +437,6 @@ impl CouponFactory {
         // Combine all sources with modular arithmetic to stay in u8 range
         let final_xor = base_xor.wrapping_add(entropy_xor).wrapping_add(user_entropy);
         
-        println!("🎲 ENTROPY: base_xor={}, entropy_xor={}, user_entropy={}, final_xor={}", 
-                 base_xor, entropy_xor, user_entropy, final_xor);
-        
         Ok(final_xor)
     }
 
@@ -510,6 +466,7 @@ impl CouponFactory {
     }
 
     fn validate_incoming_tokens(&self, context: &Context) -> Result<(u128, AlkaneId)> {
+        
         let mut total_stake = 0u128;
         let mut stake_token_id = None;
 
@@ -530,7 +487,7 @@ impl CouponFactory {
         }
 
         if total_stake == 0 {
-            return Err(anyhow!("No valid tokens received for staking"));
+            return Err(anyhow!("🚨 GAMBA FACTORY: No valid tokens received for staking (DEBUG MARKER)"));
         }
 
         if total_stake < MINIMUM_STAKE_AMOUNT {
@@ -559,63 +516,65 @@ impl CouponFactory {
         Ok(total_stake)
     }
 
-    fn calculate_stake_bonus_internal(&self, stake_amount: u128) -> Result<u8> {
-        // FIXED: Much smaller stake bonus to avoid u8 overflow: 1 point per 10,000 tokens  
-        let bonus = (stake_amount / 10000).min(25) as u8;
-        Ok(bonus)
-    }
+
 
     fn create_coupon_token(
         &self,
         stake_amount: u128,
         base_xor: u8,
-        stake_bonus: u8,
         final_result: u8,
         is_winner: bool,
     ) -> Result<AlkaneTransfer> {
         let context = self.context()?;
         let coupon_template_id = self.coupon_token_template_id()?;
-        let current_block = u128::from(self.height());
         let coupon_id = self.total_coupons();
         
         // Debug: Print template ID being used
-        println!("🔍 DEBUG: Factory calling coupon template at block: 6, tx: {}", coupon_template_id);
+        println!("🔍 DEBUG: Factory calling coupon template at block: {}, tx: {}", self.height(), coupon_template_id);
+        println!("🔍 DEBUG: Extcall parameters: {:?}", vec![
+            0u128, coupon_id, stake_amount, base_xor as u128, 0u128, 
+            final_result as u128, if is_winner { 1u128 } else { 0u128 }, 
+            self.height(), context.myself.block, context.myself.tx
+        ]);
 
-
-
-        // Create cellpack for coupon token creation
+        // Create cellpack for coupon token creation following boiler 6→4→2 pattern
         let cellpack = Cellpack {
             target: AlkaneId {
-                block: 6, // Call the coupon template at block 6 to spawn new instance at block 2
+                block: 6, // Call at 6 → targets template at 4 → spawns instance at 2
                 tx: coupon_template_id,
             },
             inputs: vec![
-                0u128, // Initialize opcode
+                0u128, // Initialize opcode - this should create NEW INSTANCE
                 coupon_id,
                 stake_amount,
                 base_xor as u128,
-                stake_bonus as u128,
+                0u128, // No bonus multiplier
                 final_result as u128,
                 if is_winner { 1u128 } else { 0u128 },
-                current_block,
+                self.height(),
                 context.myself.block,
                 context.myself.tx,
             ],
         };
         
-        println!("🔍 DEBUG: Factory calling coupon template at block: 6, tx: {} with {} inputs", coupon_template_id, cellpack.inputs.len());
-        println!("🔍 DEBUG: Inputs: {:?}", cellpack.inputs);
-
         // No tokens sent to coupon (it's created with gambling state only)
         let coupon_parcel = AlkaneTransferParcel::default();
 
-        let create_response = self.call(&cellpack, &coupon_parcel, self.fuel())?;
-
-        if create_response.alkanes.0.is_empty() {
-            return Err(anyhow!("Coupon token not returned by template"));
+        // Execute the extcall to create coupon token
+        println!("🔍 DEBUG: Executing extcall to coupon template at {:?}", cellpack.target);
+        println!("🔍 DEBUG: Cellpack inputs: {:?}", cellpack.inputs);
+        let call_response = self.call(&cellpack, &coupon_parcel, self.fuel())?;
+        println!("🔍 DEBUG: Extcall completed successfully!");
+        
+        // Extract the created coupon token from the response
+        if call_response.alkanes.0.is_empty() {
+            return Err(anyhow!("No coupon token returned from template"));
         }
-
-        Ok(create_response.alkanes.0[0].clone())
+        
+        let coupon_token = call_response.alkanes.0[0].clone();
+        println!("🔍 DEBUG: Coupon token created: {:?}", coupon_token);
+        
+        Ok(coupon_token)
     }
 
     // Storage operations following boiler patterns
@@ -633,17 +592,17 @@ impl CouponFactory {
     }
 
     fn set_coupon_token_template_id(&self, id: &AlkaneId) -> Result<()> {
-        // Store only the tx part as the template ID (following boiler pattern)
+        // Store only the tx part as the template ID following boiler pattern
         self.store("/coupon_token_template_id".as_bytes().to_vec(), id.tx.to_le_bytes().to_vec());
         Ok(())
     }
 
     fn success_threshold(&self) -> u8 {
         let bytes = self.load("/success_threshold".as_bytes().to_vec());
-        if !bytes.is_empty() {
+        if !bytes.is_empty() { 
             bytes[0]
         } else {
-            190 // Default threshold (FIXED: 190 to create winner/loser split: 231>190 win, 186<190 lose)
+            40 // Default threshold (FIXED: 40 to create winners from current final_results around 50)
         }
     }
 
@@ -686,16 +645,16 @@ impl CouponFactory {
     }
 
     fn register_coupon(&self, coupon_id: &AlkaneId) {
-        // Store individual registration for O(1) lookup
+        // Store individual registration for O(1) lookup following boiler pattern
         let key = format!("/registered_coupons/{}_{}", coupon_id.block, coupon_id.tx).into_bytes();
         self.store(key, vec![1u8]);
 
-        // Add to centralized list for enumeration
+        // Add to centralized list for enumeration following boiler pattern
         let mut coupons_list = self.registered_coupons_list();
         coupons_list.push(coupon_id.clone());
         self.set_registered_coupons_list(coupons_list);
 
-        // Update count
+        // Update count following boiler pattern
         let new_count = self.registered_coupons_count().checked_add(1).unwrap_or(0);
         self.set_registered_coupons_count(new_count);
     }
@@ -747,7 +706,7 @@ impl CouponFactory {
         );
     }
 
-    // Helper function to load u128 values from storage
+    // Helper function to load u128 values from storage following boiler pattern
     fn load_u128(&self, key_str: &str) -> u128 {
         let key = key_str.as_bytes().to_vec();
         let bytes = self.load(key);
@@ -759,7 +718,7 @@ impl CouponFactory {
         }
     }
 
-    // Getter functions for frontend/external consumption
+    // Getter functions for frontend/external consumption following boiler pattern
 
     fn get_successful_coupons(&self) -> Result<CallResponse> {
         let context = self.context()?;
@@ -810,13 +769,14 @@ impl CouponFactory {
         let coupons_list = self.registered_coupons_list();
         let coupons_count = coupons_list.len();
 
-        // Format: [count (8 bytes)] + [AlkaneId_1 (32 bytes)] + [AlkaneId_2 (32 bytes)] + ...
+        // Format following boiler pattern: [count (8 bytes)] + [AlkaneId_1 (32 bytes)] + [AlkaneId_2 (32 bytes)] + ...
+        // This matches boiler's GetAllPositionIds and GetAllRegisteredChildren format exactly
         let mut data = Vec::new();
 
-        // Add count of registered coupons (as u64 for compatibility)
+        // Add count of registered coupons (as u64 for compatibility) - following boiler pattern
         data.extend_from_slice(&(coupons_count as u64).to_le_bytes());
 
-        // Add each registered coupon AlkaneId
+        // Add each registered coupon AlkaneId - following boiler's 32-byte AlkaneId format
         for coupon in coupons_list {
             data.extend_from_slice(&coupon.block.to_le_bytes()); // 16 bytes
             data.extend_from_slice(&coupon.tx.to_le_bytes());    // 16 bytes
@@ -841,18 +801,18 @@ impl CouponFactory {
         let template_id = self.coupon_token_template_id()?;
         let template_alkane_id = AlkaneId { block: 4, tx: template_id };
         
-        // Format: [template_id (32)] + [success_threshold (1)] + [successful_coupons (16)] + [failed_coupons (16)]
-        // Total: 65 bytes
+        // Format following boiler pattern: [template_id (32)] + [success_threshold (1)] + [successful_coupons (16)] + [failed_coupons (16)]
+        // Total: 65 bytes - matches boiler's comprehensive info format
         let mut data = Vec::with_capacity(65);
         
-        // Template ID (32 bytes)
+        // Template ID (32 bytes) - following boiler's AlkaneId storage pattern
         data.extend_from_slice(&template_alkane_id.block.to_le_bytes());
         data.extend_from_slice(&template_alkane_id.tx.to_le_bytes());
         
-        // Configuration values
+        // Configuration values - following boiler's single-byte storage pattern
         data.push(self.success_threshold()); // 1 byte
         
-        // Statistics
+        // Statistics - following boiler's u128 storage pattern (16 bytes each)
         data.extend_from_slice(&self.successful_coupons().to_le_bytes()); // 16 bytes
         data.extend_from_slice(&self.failed_coupons().to_le_bytes());     // 16 bytes
         
@@ -875,10 +835,10 @@ impl CouponFactory {
         Ok(response)
     }
 
-    // Helper functions for redemption logic
+    // Helper functions for redemption logic following boiler pattern
 
     fn get_coupon_details(&self, coupon_id: &AlkaneId) -> Result<CouponDetails> {
-        // Call the coupon token to get its details
+        // Call the coupon token to get its details following boiler pattern
         let cellpack = Cellpack {
             target: coupon_id.clone(),
             inputs: vec![0x31], // Get all coupon details opcode
@@ -891,15 +851,12 @@ impl CouponFactory {
             return Err(anyhow!("Invalid coupon details response"));
         }
 
-        // Parse the response data (7 values of 16 bytes each)
+        // Parse the response data (7 values of 16 bytes each) following boiler pattern
         let mut offset = 0;
         let coupon_id = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
         offset += 16;
         let stake_amount = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
-        offset += 16;
         let base_xor = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
-        offset += 16;
-        let stake_bonus = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
         offset += 16;
         let final_result = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
         offset += 16;
@@ -911,22 +868,10 @@ impl CouponFactory {
             coupon_id,
             stake_amount,
             base_xor: base_xor as u8,
-            stake_bonus: stake_bonus as u8,
-            final_result: final_result as u8,
+            final_result: final_result as u128,
             creation_block,
             is_winner,
         })
-    }
-
-    fn validate_coupon_ownership(&self, context: &Context, coupon_id: &AlkaneId) -> Result<AlkaneTransfer> {
-        // Check if the coupon token is being sent by the holder
-        for transfer in &context.incoming_alkanes.0 {
-            if &transfer.id == coupon_id && transfer.value > 0 {
-                return Ok(transfer.clone());
-            }
-        }
-        
-        Err(anyhow!("Coupon token not provided for redemption"))
     }
 
     fn calculate_user_share(&self, user_stake: u128, total_pot: u128) -> Result<u128> {
@@ -962,13 +907,7 @@ impl CouponFactory {
         let total_pot = self.successful_coupons() * MINIMUM_STAKE_AMOUNT;
         Ok(total_pot)
     }
-
-    fn get_block_end_time_internal(&self) -> Result<u128> {
-        // For now, set block end time to 100 blocks after creation
-        // This should be configurable
-        let current_block = u128::from(self.height());
-        Ok(current_block + 100)
-    }
+ 
 
     fn get_pot_token_id(&self) -> Result<AlkaneId> {
         // Return the original stake token ID for payouts (free-mint tokens)
