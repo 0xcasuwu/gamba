@@ -50,7 +50,7 @@ fn test_complete_payout_demonstration() -> Result<()> {
             // Full initialization during template deployment
             vec![3u128, 797u128, 101u128, 1000000u128, 100000u128, 1000000000u128, 0x54455354, 0x434f494e, 0x545354],
             vec![3u128, 0x601, 10u128], 
-            vec![3u128, 0x701, 0u128, 144u128, 4u128, 0x601u128],
+            vec![3u128, 0x701], // Deploy factory template without initialization parameters
         ].into_iter().map(|v| into_cellpack(v)).collect::<Vec<Cellpack>>()
     );
     index_block(&template_block, 0)?;
@@ -101,7 +101,8 @@ fn test_complete_payout_demonstration() -> Result<()> {
     index_block(&free_mint_block, 2)?;
     let dust_token_id = AlkaneId { block: 2, tx: 1 };
 
-    // PHASE 3: Initialize Factory
+    // PHASE 3: Initialize Factory Contract
+    println!("\n🏭 PHASE 3: Initializing Factory Contract");
     let factory_init_block = protorune_helpers::create_block_with_txs(vec![Transaction {
         version: bitcoin::transaction::Version::ONE,
         lock_time: absolute::LockTime::ZERO,
@@ -126,9 +127,9 @@ fn test_complete_payout_demonstration() -> Result<()> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    6u128, 0x701, 0u128,   
-                                    144u128,               
-                                    4u128, 0x601u128,      
+                                    4u128, 0x701, 0u128,   // Call factory template at block 4, tx 0x701, opcode 0 (Initialize)
+                                    144u128,                // success_threshold
+                                    4u128, 0x601u128,      // coupon_template_id
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -144,7 +145,8 @@ fn test_complete_payout_demonstration() -> Result<()> {
             }
         ],
     }]);
-    index_block(&factory_init_block, 4)?;
+    index_block(&factory_init_block, 6)?;
+    println!("✅ Factory contract initialized at block 6");
 
     // PHASE 4: Create coupon and CAPTURE the returned coupon token
     println!("\n🎫 PHASE 4: Creating Coupon and Capturing Token ID");
@@ -178,7 +180,7 @@ fn test_complete_payout_demonstration() -> Result<()> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    4u128, 1793u128, 1u128, // CreateCoupon  
+                                    6u128, 0x701, 1u128, // CreateCoupon - factory at block 6, tx 0x701
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,
                                 pointer: Some(0),
@@ -270,7 +272,7 @@ fn test_complete_payout_demonstration() -> Result<()> {
                         vec![
                             Protostone {
                                 message: into_cellpack(vec![
-                                    4u128, 1793u128, 2u128, // RedeemCoupon opcode
+                                    6u128, 0x701, 2u128, // RedeemCoupon opcode - factory at block 6, tx 0x701
                                     coupon_id.block, coupon_id.tx, // Pass coupon ID as parameters
                                 ]).encipher(),
                                 protocol_tag: AlkaneMessageContext::protocol_tag() as u128,

@@ -1,3 +1,12 @@
+//! Gamba Coupon Factory - Following Boiler Storage and Retrieval Patterns
+//! 
+//! This contract implements the same data storage and retrieval patterns as the boiler project:
+//! - AlkaneId storage: 32 bytes (16 bytes block + 16 bytes tx) following boiler's format
+//! - u128 storage: 16 bytes using to_le_bytes() following boiler's pattern  
+//! - u8 storage: 1 byte using direct storage following boiler's pattern
+//! - List storage: [count (8 bytes)] + [items (32 bytes each)] following boiler's format
+//! - Comprehensive info: structured data with fixed byte sizes following boiler's approach
+
 use alkanes_support::context::Context;
 use metashrew_support::compat::to_arraybuffer_layout;
 
@@ -20,8 +29,7 @@ use metashrew_support::utils::consensus_decode;
 /// Coupon token template ID
 const COUPON_TOKEN_TEMPLATE_ID: u128 = 0x601;
 
-/// Minimum stake amount for gambling
-const MINIMUM_STAKE_AMOUNT: u128 = 1000;
+// No minimum stake requirement - just ensure stake is not 0
 
 #[derive(Default)]
 pub struct CouponFactory(());
@@ -125,8 +133,6 @@ impl CouponFactory {
         let context = self.context()?;
         let mut response = CallResponse::default();
         
-        println!("🚨 REDEEM START: Processing coupon {:?}", coupon_id);
-
         // Verify user is bringing in the actual coupon token
         let incoming_coupon = context.incoming_alkanes.0.iter()
             .find(|alkane| alkane.id == coupon_id)
@@ -229,7 +235,7 @@ impl CouponFactory {
         let mut coupons = Vec::new();
         let mut offset = 0;
         
-        // Each AlkaneId is 32 bytes (16 bytes block + 16 bytes tx)
+        // Each AlkaneId is 32 bytes (16 bytes block + 16 bytes tx) - following boiler pattern
         while offset + 32 <= data.len() {
             let block_bytes: [u8; 16] = data[offset..offset+16].try_into().unwrap_or([0; 16]);
             let tx_bytes: [u8; 16] = data[offset+16..offset+32].try_into().unwrap_or([0; 16]);
@@ -251,7 +257,7 @@ impl CouponFactory {
         let key_bytes = key.clone().into_bytes();
         let mut data = self.load(key_bytes);
         
-        // Append new coupon ID (32 bytes: 16 for block, 16 for tx)
+        // Append new coupon ID (32 bytes: 16 for block, 16 for tx) - following boiler pattern
         data.extend_from_slice(&coupon_id.block.to_le_bytes());
         data.extend_from_slice(&coupon_id.tx.to_le_bytes());
         
@@ -342,8 +348,7 @@ impl CouponFactory {
             response.alkanes.0.push(coupon_token);
         }
 
-        // Staked tokens are consumed regardless of success/failure
-        // (This is automatic as staked tokens are not returned in response)
+        // Staked tokens are escrowed by factory regardless of success/failure
 
         Ok(response)
     }
@@ -490,19 +495,12 @@ impl CouponFactory {
             return Err(anyhow!("🚨 GAMBA FACTORY: No valid tokens received for staking (DEBUG MARKER)"));
         }
 
-        if total_stake < MINIMUM_STAKE_AMOUNT {
-            return Err(anyhow!("Insufficient stake amount. Received: {}, Minimum: {}", total_stake, MINIMUM_STAKE_AMOUNT));
-        }
-
         let token_id = stake_token_id.ok_or_else(|| anyhow!("No valid stake token found"))?;
         Ok((total_stake, token_id))
     }
 
     fn is_valid_stake_token(&self, token_id: &AlkaneId) -> bool {
-        // Check if token is from an initialized free-mint contract
-        // Accept tokens from the standard deployment OR from test deployments
-        (token_id.block == 2 && token_id.tx == 1) ||         // Standard deployment
-        (token_id.block == 4 && token_id.tx == 797)          // Test deployment (gamba_deposit_redemption_test.rs pattern)
+        //this needs to be set during init 
     }
 
     fn get_stake_input_amount(&self, context: &Context) -> Result<u128> {
@@ -527,15 +525,7 @@ impl CouponFactory {
     ) -> Result<AlkaneTransfer> {
         let context = self.context()?;
         let coupon_template_id = self.coupon_token_template_id()?;
-        let coupon_id = self.total_coupons();
-        
-        // Debug: Print template ID being used
-        println!("🔍 DEBUG: Factory calling coupon template at block: {}, tx: {}", self.height(), coupon_template_id);
-        println!("🔍 DEBUG: Extcall parameters: {:?}", vec![
-            0u128, coupon_id, stake_amount, base_xor as u128, 0u128, 
-            final_result as u128, if is_winner { 1u128 } else { 0u128 }, 
-            self.height(), context.myself.block, context.myself.tx
-        ]);
+        let coupon_id = self.total_coupons(); 
 
         // Create cellpack for coupon token creation following boiler 6→4→2 pattern
         let cellpack = Cellpack {
@@ -668,7 +658,7 @@ impl CouponFactory {
         let mut coupons = Vec::new();
         let mut offset = 0;
 
-        // Each AlkaneId is 32 bytes (16 bytes block + 16 bytes tx)
+        // Each AlkaneId is 32 bytes (16 bytes block + 16 bytes tx) - following boiler pattern
         while offset + 32 <= bytes.len() {
             let block_bytes: [u8; 16] = bytes[offset..offset+16].try_into().unwrap_or([0; 16]);
             let tx_bytes: [u8; 16] = bytes[offset+16..offset+32].try_into().unwrap_or([0; 16]);
@@ -687,9 +677,10 @@ impl CouponFactory {
     fn set_registered_coupons_list(&self, coupons: Vec<AlkaneId>) {
         let mut bytes = Vec::new();
         
+        // Store each AlkaneId following boiler pattern: 32 bytes per ID
         for coupon in coupons {
-            bytes.extend_from_slice(&coupon.block.to_le_bytes());
-            bytes.extend_from_slice(&coupon.tx.to_le_bytes());
+            bytes.extend_from_slice(&coupon.block.to_le_bytes());   // 16 bytes
+            bytes.extend_from_slice(&coupon.tx.to_le_bytes());      // 16 bytes
         }
         
         self.store("/registered_coupons_list".as_bytes().to_vec(), bytes);
@@ -754,9 +745,10 @@ impl CouponFactory {
         let template_id = self.coupon_token_template_id()?;
         let template_alkane_id = AlkaneId { block: 4, tx: template_id };
         
+        // Format following boiler pattern: 32 bytes for AlkaneId (16 + 16)
         let mut data = Vec::with_capacity(32);
-        data.extend_from_slice(&template_alkane_id.block.to_le_bytes());
-        data.extend_from_slice(&template_alkane_id.tx.to_le_bytes());
+        data.extend_from_slice(&template_alkane_id.block.to_le_bytes());  // 16 bytes
+        data.extend_from_slice(&template_alkane_id.tx.to_le_bytes());    // 16 bytes
         
         response.data = data;
         Ok(response)
@@ -831,7 +823,7 @@ impl CouponFactory {
     fn get_minimum_stake(&self) -> Result<CallResponse> {
         let context = self.context()?;
         let mut response = CallResponse::forward(&context.incoming_alkanes);
-        response.data = MINIMUM_STAKE_AMOUNT.to_le_bytes().to_vec();
+        response.data = 0u128.to_le_bytes().to_vec(); // No minimum stake requirement
         Ok(response)
     }
 
@@ -856,6 +848,7 @@ impl CouponFactory {
         let coupon_id = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
         offset += 16;
         let stake_amount = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
+        offset += 16;
         let base_xor = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
         offset += 16;
         let final_result = u128::from_le_bytes(response.data[offset..offset+16].try_into()?);
@@ -904,7 +897,8 @@ impl CouponFactory {
     fn get_total_pot_internal(&self) -> Result<u128> {
         // For now, return the total of all successful stakes
         // This should be enhanced to track the actual pot
-        let total_pot = self.successful_coupons() * MINIMUM_STAKE_AMOUNT;
+        // Note: This is a placeholder - actual pot calculation should track real stake amounts
+        let total_pot = self.successful_coupons() * 1000; // Placeholder value
         Ok(total_pot)
     }
  

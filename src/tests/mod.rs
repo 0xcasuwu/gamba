@@ -20,5 +20,9 @@ pub mod minimal_test;
 pub mod complete_payout_demonstration;
 pub mod working_redemption_with_payout;
 pub mod simple_factory_test;
+pub mod concurrent_coupon_creation_test;
+pub mod simple_concurrent_test;
+pub mod final_concurrent_test;
+pub mod concurrent_working_test;
 // pub mod proven_multi_user_lottery; // REMOVED - missing file
 // pub mod coupon_utils;
